@@ -20,6 +20,20 @@ export function validateGradeSheet(grades, students, components) {
   return errors;
 }
 
+export function isValidGradePayload(grades, components) {
+  if (!grades || typeof grades !== "object" || Array.isArray(grades)) return false;
+  const allowedComponents = new Set(components.map((component) => component.id));
+  return Object.values(grades).every(
+    (scores) =>
+      scores &&
+      typeof scores === "object" &&
+      !Array.isArray(scores) &&
+      Object.entries(scores).every(
+        ([componentId, value]) => allowedComponents.has(componentId) && !validateGradeValue(value),
+      ),
+  );
+}
+
 export function hasIncompleteGrades(grades, students, components) {
   return students.some((student) =>
     components.some((component) => {

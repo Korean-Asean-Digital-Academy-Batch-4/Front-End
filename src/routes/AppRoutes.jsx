@@ -91,10 +91,8 @@ export default function AppRoutes() {
             <Route path="/teacher/grades" element={<TeacherGradesPage />} />
             <Route element={<HomeroomRoute />}>
               <Route path="/teacher/subject-grades" element={<TeacherSubjectGradesPage />} />
-            </Route>
-            <Route path="/teacher/reports" element={<TeacherReportsPage />} />
-            <Route path="/teacher/reports/:studentId" element={<TeacherStudentReportPage />} />
-            <Route element={<HomeroomRoute />}>
+              <Route path="/teacher/reports" element={<TeacherReportsPage />} />
+              <Route path="/teacher/reports/:studentId" element={<TeacherStudentReportPage />} />
               <Route path="/teacher/homeroom/reports" element={<TeacherHomeroomReportsPage />} />
               <Route path="/teacher/homeroom/reports/:studentId" element={<TeacherHomeroomReportsPage />} />
             </Route>

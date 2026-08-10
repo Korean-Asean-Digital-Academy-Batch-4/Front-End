@@ -40,8 +40,8 @@ export const superAdminMenu = [
     label: "Database",
     icon: Database,
     children: [
-      { label: "Daftar Nama Guru", path: "/superadmin/database/teachers" },
-      { label: "Daftar Nama Siswa", path: "/superadmin/database/students" },
+      { label: "DB Guru", path: "/superadmin/database/teachers" },
+      { label: "DB Siswa", path: "/superadmin/database/students" },
       { label: "DB Presensi Siswa", path: "/superadmin/database/attendance" },
       { label: "DB Mata Pelajaran", path: "/superadmin/database/subjects" },
       { label: "DB Nilai", path: "/superadmin/database/grades" },

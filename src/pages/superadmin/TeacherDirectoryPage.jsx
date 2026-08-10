@@ -21,7 +21,7 @@ export default function TeacherDirectoryPage() {
   return (
     <main className="mx-auto w-full max-w-[1160px] px-4 py-8 sm:px-6 lg:px-8">
       <header>
-        <h1 className="text-3xl font-bold tracking-[-0.035em] text-[#20232D]">Daftar Nama Guru</h1>
+        <h1 className="text-3xl font-bold tracking-[-0.035em] text-[#20232D]">Database Guru</h1>
         <p className="mt-2 text-base text-[#697184]">Kelola dan lihat data direktori guru.</p>
       </header>
 

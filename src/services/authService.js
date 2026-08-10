@@ -49,14 +49,33 @@ const wait = (duration) => new Promise((resolve) => setTimeout(resolve, duration
 export async function login({ username, password }) {
   if (!appConfig.useMockApi) {
     const data = await api.post("/auth/login", { identifier: username.trim(), password }, { auth: false });
+    const homeroomAssignment = data.profile?.homeroomAssignment ?? (
+      data.profile?.isHomeroom && data.profile?.homeroomClassId
+        ? {
+            classId: data.profile.homeroomClassId,
+            className: data.profile.homeroomClassName || "Kelas Wali",
+            status: "active",
+          }
+        : null
+    );
+    const teachingAssignments = (
+      data.profile?.teachingAssignments || data.profile?.assignedClasses || []
+    ).map((assignment) => ({
+      ...assignment,
+      id: assignment.id || assignment.classId,
+      classId: assignment.classId || assignment.id,
+      status: assignment.status || "active",
+    }));
     return {
       token: data.token,
       user: {
         ...data.profile,
         role: data.role,
-        isHomeroomTeacher: Boolean(data.profile?.isHomeroom),
-        homeroomClass: data.profile?.homeroomClassId
-          ? { id: data.profile.homeroomClassId, name: data.profile.homeroomClassName || "Kelas Wali" }
+        teachingAssignments,
+        homeroomAssignment,
+        isHomeroomTeacher: homeroomAssignment?.status === "active",
+        homeroomClass: homeroomAssignment?.classId
+          ? { id: homeroomAssignment.classId, name: homeroomAssignment.className || "Kelas Wali" }
           : null,
       },
     };

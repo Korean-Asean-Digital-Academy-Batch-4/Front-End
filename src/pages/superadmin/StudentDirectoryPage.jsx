@@ -56,7 +56,7 @@ export default function StudentDirectoryPage() {
 
   return (
     <main className="mx-auto w-full max-w-[1120px] px-4 py-8 sm:px-6 lg:px-8">
-      <h1 className="text-3xl font-bold tracking-[-0.035em] text-[#20232D]">Daftar Siswa</h1>
+      <h1 className="text-3xl font-bold tracking-[-0.035em] text-[#20232D]">Database Siswa</h1>
 
       <section className="mt-5 rounded-lg border border-[#D7DCE7] bg-white p-4 shadow-[0_1px_3px_rgba(30,42,75,0.04)]" aria-label="Filter daftar siswa">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1.1fr_1.15fr_auto] lg:items-end">

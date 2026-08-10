@@ -16,6 +16,14 @@ export function setAuthSession(user, token) {
   localStorage.removeItem(LEGACY_TOKEN_KEY);
 }
 
+export function updateStoredUser(patch) {
+  const user = getStoredUser();
+  if (!user) return null;
+  const updated = { ...user, ...patch };
+  localStorage.setItem(USER_KEY, JSON.stringify(updated));
+  return updated;
+}
+
 export function clearAuthSession() {
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(TOKEN_KEY);

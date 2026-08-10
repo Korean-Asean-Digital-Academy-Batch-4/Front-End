@@ -85,7 +85,7 @@ export default function BulkAccountGenerationPage({ accountType }) {
               {generating ? (
                 <><LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" /> Memproses Akun...</>
               ) : (
-                <><Sparkles aria-hidden="true" className="h-4 w-4" /> Buat Akun Otomatis Dengan AI</>
+                <><Sparkles aria-hidden="true" className="h-4 w-4" /> Buat Akun</>
               )}
             </Button> : <div className="mt-5 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-700"><strong>{uploadedFile.result?.createdCount ?? 0} akun berhasil dibuat.</strong>{uploadedFile.result?.failedRows?.length > 0 && <p className="mt-1">{uploadedFile.result.failedRows.length} baris gagal dan perlu diperiksa kembali.</p>}</div>}
 

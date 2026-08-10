@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import logo from "../../assets/logo-edutrack.svg";
 import { getStoredUser } from "../../stores/authStore";
-import { canViewClassSubjectGrades } from "../../utils/teacherPermissions";
+import { canCreateReport, canManageGrades, canViewClassSubjectGrades } from "../../utils/teacherPermissions";
 import SidebarItem from "./SidebarItem";
 
 export function getNavigationItems(user = getStoredUser()) {
@@ -29,18 +29,19 @@ export function getNavigationItems(user = getStoredUser()) {
   return [
     { to: "/teacher/dashboard", label: "Dashboard", icon: LayoutGrid },
     { to: "/teacher/attendance", label: "Presensi", icon: CalendarCheck },
-    { to: "/teacher/grades", label: "Input Nilai", icon: FilePenLine },
-    ...(canViewClassSubjectGrades(user)
-      ? [{ to: "/teacher/subject-grades", label: "Lihat Nilai Mapel", icon: BarChart3 }]
-      : []),
+    { to: "/teacher/grades", label: "Input Nilai", icon: FilePenLine, disabled: !canManageGrades(user) },
+    {
+      to: "/teacher/subject-grades",
+      label: "Lihat Nilai Mapel",
+      icon: BarChart3,
+      disabled: !canViewClassSubjectGrades(user),
+    },
     {
       to: "/teacher/reports",
       label: "Buat Rapor",
       icon: FileChartColumn,
+      disabled: !canCreateReport(user),
     },
-    ...(user?.isHomeroomTeacher
-      ? [{ to: "/teacher/homeroom/reports", label: "Rapor Semester", icon: FileText }]
-      : []),
     { to: "/teacher/account", label: "Akun", icon: UserRound },
   ];
 }

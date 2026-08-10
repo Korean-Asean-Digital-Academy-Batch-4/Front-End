@@ -7,6 +7,7 @@ import {
   reportStudents,
 } from "../data/reportData";
 import { teacherUser } from "../data/teacherData";
+import { getStoredUser } from "../stores/authStore";
 import { getOfficialGradeRecord, getTopicRecord, saveOfficialGradeRecord } from "../stores/gradeStore";
 import {
   appendReportVersion,
@@ -19,6 +20,7 @@ import {
 import { calculateAttendancePercentage, calculateSubjectFinalGrade } from "../utils/reportCalculation";
 import { downloadSubjectReportPdf } from "../utils/reportPdfGenerator";
 import { sanitizeReportNote, validateReportGeneration } from "../utils/reportValidation";
+import { canCreateReport, getActiveHomeroomClassId } from "../utils/teacherPermissions";
 
 const wait = (duration, signal) => new Promise((resolve, reject) => {
   const timer = setTimeout(resolve, duration);
@@ -33,7 +35,15 @@ function assignmentIdFor(classId) {
   return classId === "CLS-001" ? "ASN-001" : "ASN-002";
 }
 
+function assertReportClassAccess(classId) {
+  const user = getStoredUser();
+  if (!canCreateReport(user) || !classId || getActiveHomeroomClassId(user) !== classId) {
+    throw new Error("UNAUTHORIZED_HOMEROOM_REPORT_ACCESS");
+  }
+}
+
 function resolveAssignment(filters) {
+  assertReportClassAccess(filters.classId);
   const assignment = teacherUser.assignedClasses.find(
     (item) =>
       item.id === filters.classId &&
@@ -147,6 +157,7 @@ export async function generateStudentReport(payload, options = {}) {
 }
 
 export async function generateAllReports(payload, options = {}) {
+  assertReportClassAccess(payload.filters.classId);
   const eligibleIds = payload.studentIds || [];
   const job = {
     id: `JOB-${Date.now()}`,
@@ -187,6 +198,7 @@ export async function getStudentReport(studentId, assignmentId = "ASN-001") {
   await wait(500);
   const report = getSubjectReport(studentId, assignmentId);
   if (!report) throw new Error("REPORT_NOT_FOUND");
+  assertReportClassAccess(report.classId);
   const student = reportStudents.find((item) => item.id === studentId);
   const assignment = teacherUser.assignedClasses.find(
     (item) => assignmentIdFor(item.id) === assignmentId && item.subjectId === report.subjectId,
@@ -199,6 +211,7 @@ export async function saveReportNote(payload) {
   await wait(650);
   const report = getSubjectReport(payload.studentId, payload.assignmentId);
   if (!report || report.status === REPORT_STATUSES.FINALIZED_SUBJECT) throw new Error("REPORT_LOCKED");
+  assertReportClassAccess(report.classId);
   const note = sanitizeReportNote(payload.note);
   const updated = saveSubjectReport({ ...report, note, noteReviewed: true, noteSavedAt: new Date().toISOString() });
   saveReportNoteRecord({ reportId: report.id, studentId: report.studentId, assignmentId: report.assignmentId, note });
@@ -209,6 +222,7 @@ export async function finalizeSubjectReport(payload) {
   await wait(900);
   const report = getSubjectReport(payload.studentId, payload.assignmentId);
   if (!report) throw new Error("REPORT_NOT_FOUND");
+  assertReportClassAccess(report.classId);
   appendReportVersion(report, { action: "FINALIZE", actorId: teacherUser.id });
   const updated = saveSubjectReport({
     ...report,
@@ -236,6 +250,7 @@ export async function finalizeSubjectReport(payload) {
 }
 
 export async function downloadSubjectReport(payload) {
+  assertReportClassAccess(payload.report?.classId);
   await wait(350);
   return downloadSubjectReportPdf(payload.report, payload.student, payload.assignment, { preview: payload.preview });
 }

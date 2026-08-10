@@ -13,18 +13,25 @@ import Toast from "../../components/ui/Toast";
 import { REPORT_STATUSES } from "../../data/reportData";
 import { teacherUser } from "../../data/teacherData";
 import { generateAllReports, generateStudentReport, getReportStudents } from "../../services/reportService";
+import { getStoredUser } from "../../stores/authStore";
 import { canGenerateReport } from "../../utils/reportStatus";
-
-const firstAssignment = teacherUser.assignedClasses[0];
-const initialFilters = {
-  classId: firstAssignment.id,
-  subjectId: firstAssignment.subjectId,
-  academicYear: firstAssignment.academicYear,
-  semester: firstAssignment.semester.toUpperCase(),
-};
+import { getActiveHomeroomClassId } from "../../utils/teacherPermissions";
 
 export default function TeacherReportsPage() {
-  const [filters, setFilters] = useState(initialFilters);
+  const homeroomClassId = getActiveHomeroomClassId(getStoredUser());
+  const assignments = useMemo(
+    () => teacherUser.assignedClasses.filter((item) => item.id === homeroomClassId),
+    [homeroomClassId],
+  );
+  const [filters, setFilters] = useState(() => {
+    const assignment = assignments[0];
+    return assignment ? {
+      classId: assignment.id,
+      subjectId: assignment.subjectId,
+      academicYear: assignment.academicYear,
+      semester: assignment.semester.toUpperCase(),
+    } : { classId: homeroomClassId || "", subjectId: "", academicYear: "", semester: "" };
+  });
   const [pageState, setPageState] = useState("initial");
   const [data, setData] = useState(null);
   const [generatingId, setGeneratingId] = useState(null);
@@ -116,7 +123,7 @@ export default function TeacherReportsPage() {
     <div className="px-4 py-8 sm:px-7 lg:px-10">
       <div className="mx-auto max-w-[1120px]">
         <ReportPageHeader />
-        <ReportFilters filters={filters} onChange={changeFilters} onShow={loadReports} loading={pageState === "loading" || Boolean(progress)} />
+        <ReportFilters assignments={assignments} filters={filters} onChange={changeFilters} onShow={loadReports} loading={pageState === "loading" || Boolean(progress)} />
 
         {pageState === "initial" && <ReportEmptyState />}
         {pageState === "loading" && <section role="status" className="mx-auto mt-20 flex max-w-md flex-col items-center rounded-2xl bg-white p-10 shadow-soft"><Spinner className="h-8 w-8 text-[#0756D9]" /><p className="mt-4 text-sm text-[#64748B]">Memuat daftar rapor...</p></section>}
@@ -138,4 +145,3 @@ export default function TeacherReportsPage() {
     </div>
   );
 }
-

@@ -2,9 +2,17 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { assessmentComponents, TOTAL_ASSESSMENT_WEIGHT } from "../src/data/assessmentComponents.js";
 import { calculateFinalGrade } from "../src/utils/calculateFinalGrade.js";
-import { validateGradeValue } from "../src/utils/gradeValidation.js";
+import { isValidGradePayload, validateGradeValue } from "../src/utils/gradeValidation.js";
 import { MAX_IMPORT_FILE_SIZE, validateImportFile } from "../src/utils/importFile.js";
-import { canViewClassSubjectGrades } from "../src/utils/teacherPermissions.js";
+import {
+  canCreateReport,
+  canManageGrades,
+  canManageTeachingAssignment,
+  canViewClassSubjectGrades,
+  getActiveTeachingAssignments,
+  getActiveHomeroomClassId,
+  isActiveHomeroomTeacher,
+} from "../src/utils/teacherPermissions.js";
 
 test("template nilai mengikuti 8 komponen API dengan total bobot 100%", () => {
   assert.equal(assessmentComponents.length, 8);
@@ -16,6 +24,13 @@ test("nilai di luar rentang 0 sampai 100 ditolak", () => {
   assert.match(validateGradeValue(101), /0–100/);
   assert.equal(validateGradeValue(0), "");
   assert.equal(validateGradeValue(100), "");
+});
+
+test("payload nilai hanya menerima komponen resmi dengan nilai 0 sampai 100", () => {
+  assert.equal(isValidGradePayload({ "STD-001": { T1: 0, UAS: 100 } }, assessmentComponents), true);
+  assert.equal(isValidGradePayload({ "STD-001": { T1: -1 } }, assessmentComponents), false);
+  assert.equal(isValidGradePayload({ "STD-001": { UAS: 101 } }, assessmentComponents), false);
+  assert.equal(isValidGradePayload({ "STD-001": { UNKNOWN: 80 } }, assessmentComponents), false);
 });
 
 test("nilai kosong tetap dianggap belum lengkap, bukan nol", () => {
@@ -36,17 +51,51 @@ test("unggahan akun dibatasi maksimal 5 MB", () => {
   assert.match(validateImportFile({ name: "guru.pdf", size: 1000 }), /tidak didukung/);
 });
 
-test("hanya teacher dengan assignment wali kelas yang dapat melihat nilai mapel kelas", () => {
+test("akses wali kelas hanya aktif berdasarkan status homeroomAssignment", () => {
   assert.equal(canViewClassSubjectGrades({ role: "teacher", isHomeroomTeacher: false }), false);
   assert.equal(canViewClassSubjectGrades({ role: "teacher", isHomeroomTeacher: true }), false);
-  assert.equal(canViewClassSubjectGrades({
+  const activeHomeroomTeacher = {
     role: "teacher",
-    isHomeroomTeacher: true,
-    homeroomClass: { id: "CLS-001", name: "X-MIPA 1" },
-  }), true);
-  assert.equal(canViewClassSubjectGrades({
-    role: "student",
-    isHomeroomTeacher: true,
-    homeroomClass: { id: "CLS-001", name: "X-MIPA 1" },
+    homeroomAssignment: { status: "active", classId: "CLS-001" },
+  };
+  assert.equal(isActiveHomeroomTeacher(activeHomeroomTeacher), true);
+  assert.equal(canViewClassSubjectGrades(activeHomeroomTeacher), true);
+  assert.equal(canCreateReport(activeHomeroomTeacher), true);
+  assert.equal(getActiveHomeroomClassId(activeHomeroomTeacher), "CLS-001");
+  assert.equal(isActiveHomeroomTeacher({
+    role: "teacher",
+    homeroomAssignment: { status: "inactive", classId: "CLS-001" },
   }), false);
+  assert.equal(isActiveHomeroomTeacher({
+    role: "student",
+    homeroomAssignment: { status: "active", classId: "CLS-001" },
+  }), false);
+});
+
+test("semua teacher dapat mengelola nilai hanya untuk teaching assignment aktifnya", () => {
+  const filters = {
+    classId: "CLS-001",
+    subjectId: "SUB-001",
+    academicYear: "2026/2027",
+    semester: "GANJIL",
+  };
+  const regularTeacher = {
+    role: "teacher",
+    homeroomAssignment: null,
+    teachingAssignments: [{ ...filters, status: "active" }],
+  };
+  const homeroomTeacher = {
+    ...regularTeacher,
+    homeroomAssignment: { status: "active", classId: "CLS-001" },
+  };
+  assert.equal(canManageGrades(regularTeacher), true);
+  assert.equal(canManageGrades(homeroomTeacher), true);
+  assert.equal(canManageTeachingAssignment(regularTeacher, filters), true);
+  assert.equal(canManageTeachingAssignment(homeroomTeacher, filters), true);
+  assert.equal(canManageTeachingAssignment(homeroomTeacher, { ...filters, subjectId: "SUB-002" }), false);
+  assert.equal(getActiveTeachingAssignments({
+    ...regularTeacher,
+    teachingAssignments: [{ ...filters, status: "inactive" }],
+  }).length, 0);
+  assert.equal(canManageGrades({ role: "student", teachingAssignments: [{ ...filters, status: "active" }] }), false);
 });

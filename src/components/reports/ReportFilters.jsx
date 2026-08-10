@@ -1,11 +1,10 @@
 import { Search } from "lucide-react";
-import { teacherUser } from "../../data/teacherData";
 import Select from "../ui/Select";
 
-export default function ReportFilters({ filters, onChange, onShow, loading }) {
-  const selected = teacherUser.assignedClasses.find((item) => item.id === filters.classId);
+export default function ReportFilters({ assignments, filters, onChange, onShow, loading }) {
+  const selected = assignments.find((item) => item.id === filters.classId) || assignments[0];
   const changeClass = (event) => {
-    const assignment = teacherUser.assignedClasses.find((item) => item.id === event.target.value);
+    const assignment = assignments.find((item) => item.id === event.target.value);
     onChange({
       classId: assignment.id,
       subjectId: assignment.subjectId,
@@ -18,11 +17,11 @@ export default function ReportFilters({ filters, onChange, onShow, loading }) {
   return (
     <section aria-label="Filter rapor" className="mt-7 rounded-[14px] border border-[#E4E8F1] bg-white p-4 shadow-[0_2px_8px_rgba(30,42,75,0.05)]">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(160px,0.85fr)_minmax(220px,1.25fr)_minmax(200px,1fr)_minmax(180px,0.9fr)_auto] xl:items-end">
-        <Select label="Kelas" value={filters.classId} onChange={changeClass} disabled={loading}>
-          {teacherUser.assignedClasses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+        <Select label="Kelas" value={filters.classId} onChange={changeClass} disabled={loading || assignments.length === 1}>
+          {assignments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
         </Select>
         <Select label="Mata Pelajaran" value={filters.subjectId} onChange={keepAssignedOption} disabled={loading}>
-          <option value={selected.subjectId}>{selected.subjectName}</option>
+          <option value={selected?.subjectId}>{selected?.subjectName}</option>
         </Select>
         <Select label="Semester" value={filters.semester} onChange={keepAssignedOption} disabled={loading}>
           <option value="GANJIL">Semester Ganjil</option>

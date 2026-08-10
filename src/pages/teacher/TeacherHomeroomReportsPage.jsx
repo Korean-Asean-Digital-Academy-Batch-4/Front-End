@@ -5,10 +5,11 @@ import Spinner from "../../components/ui/Spinner";
 import Toast from "../../components/ui/Toast";
 import { distributeHomeroomReports, finalizeHomeroomReports, getHomeroomWorkspace } from "../../services/homeroomService";
 import { getStoredUser } from "../../stores/authStore";
+import { getActiveHomeroomClassId } from "../../utils/teacherPermissions";
 
 export default function TeacherHomeroomReportsPage() {
   const user = getStoredUser();
-  const classId = user?.homeroomClass?.id;
+  const classId = getActiveHomeroomClassId(user);
   const [state, setState] = useState("loading");
   const [workspace, setWorkspace] = useState(null);
   const [action, setAction] = useState("");
@@ -37,7 +38,7 @@ export default function TeacherHomeroomReportsPage() {
 
   return (
     <div className="px-4 py-8 sm:px-7 lg:px-10"><div className="mx-auto max-w-[1050px]">
-      <header><h1 className="text-[26px] font-bold text-[#20232D]">Rapor Semester Wali Kelas</h1><p className="mt-1 text-sm text-[#64748B]">Periksa kelengkapan seluruh mata pelajaran sebelum finalisasi dan distribusi rapor {user?.homeroomClass?.name}.</p></header>
+      <header><h1 className="text-[26px] font-bold text-[#20232D]">Rapor Semester Wali Kelas</h1><p className="mt-1 text-sm text-[#64748B]">Periksa kelengkapan seluruh mata pelajaran sebelum finalisasi dan distribusi rapor {user?.homeroomAssignment?.className}.</p></header>
       {state === "loading" && <div role="status" className="flex min-h-[320px] items-center justify-center"><Spinner className="h-8 w-8 text-[#0756D9]" /></div>}
       {state === "error" && <section role="alert" className="mt-8 rounded-xl border border-red-100 bg-white p-8 text-center"><CircleAlert className="mx-auto h-9 w-9 text-red-500" /><p className="mt-3 font-semibold">Data rapor kelas belum dapat dimuat.</p><Button onClick={load} className="mt-5">Coba Lagi</Button></section>}
       {state === "loaded" && workspace && <>
@@ -52,4 +53,3 @@ export default function TeacherHomeroomReportsPage() {
 function Summary({ label, value, accent = false }) {
   return <article className="rounded-xl border border-[#E1E5ED] bg-white p-5"><p className="text-xs font-semibold uppercase tracking-wide text-[#697184]">{label}</p><p className={`mt-2 text-2xl font-bold ${accent ? "text-[#0756D9]" : "text-[#20232D]"}`}>{value}</p></article>;
 }
-

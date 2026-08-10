@@ -1,4 +1,6 @@
 import { appConfig } from "../config/env";
+import { getStoredUser } from "../stores/authStore";
+import { getActiveHomeroomClassId } from "../utils/teacherPermissions";
 import { api } from "./apiClient";
 
 const wait = (duration) => new Promise((resolve) => setTimeout(resolve, duration));
@@ -10,11 +12,18 @@ const mockSubjects = [
   { id: "SUB-003", name: "Bahasa Indonesia", teacherName: "Dewi Lestari", complete: true },
 ];
 
+function assertHomeroomClassAccess(classId) {
+  if (!classId || getActiveHomeroomClassId(getStoredUser()) !== classId) {
+    throw new Error("UNAUTHORIZED_HOMEROOM_REPORT_ACCESS");
+  }
+}
+
 function readMockStatus() {
   return localStorage.getItem(MOCK_STATUS_KEY) || "Draft";
 }
 
 export async function getHomeroomWorkspace(classId) {
+  assertHomeroomClassAccess(classId);
   if (!appConfig.useMockApi) {
     const [overview, completeness] = await Promise.all([
       api.get(`/homeroom/classes/${classId}/overview`),
@@ -31,6 +40,7 @@ export async function getHomeroomWorkspace(classId) {
 }
 
 export async function finalizeHomeroomReports(classId) {
+  assertHomeroomClassAccess(classId);
   if (!appConfig.useMockApi) return api.post(`/homeroom/classes/${classId}/finalize`);
   await wait(700);
   localStorage.setItem(MOCK_STATUS_KEY, "Finalized");
@@ -38,6 +48,7 @@ export async function finalizeHomeroomReports(classId) {
 }
 
 export async function distributeHomeroomReports(classId) {
+  assertHomeroomClassAccess(classId);
   if (!appConfig.useMockApi) return api.post(`/homeroom/classes/${classId}/distribute`);
   await wait(700);
   if (readMockStatus() !== "Finalized") throw new Error("REPORT_NOT_FINALIZED");
@@ -50,4 +61,3 @@ export async function saveHomeroomReportNote(studentId, note) {
   await wait(300);
   return { studentId, note };
 }
-

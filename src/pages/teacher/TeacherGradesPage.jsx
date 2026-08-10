@@ -14,7 +14,6 @@ import Spinner from "../../components/ui/Spinner";
 import Toast from "../../components/ui/Toast";
 import { assessmentComponents, TOTAL_ASSESSMENT_WEIGHT } from "../../data/assessmentComponents";
 import { GRADE_KKM, GRADE_STATUSES } from "../../data/gradeData";
-import { teacherUser } from "../../data/teacherData";
 import {
   getGradeSheet,
   getLearningTopics,
@@ -31,23 +30,26 @@ import {
   validateGradeSheet,
   validateGradeValue,
 } from "../../utils/gradeValidation";
+import { getActiveTeachingAssignments, isActiveHomeroomTeacher } from "../../utils/teacherPermissions";
 
-const firstAssignment = teacherUser.assignedClasses[0];
-const initialFilters = {
-  classId: firstAssignment.id,
-  subjectId: firstAssignment.subjectId,
-  academicYear: firstAssignment.academicYear,
-  semester: firstAssignment.semester.toUpperCase(),
-};
+function filtersForAssignment(assignment) {
+  return assignment ? {
+    classId: assignment.classId || assignment.id,
+    subjectId: assignment.subjectId,
+    academicYear: assignment.academicYear,
+    semester: String(assignment.semester).toUpperCase(),
+  } : { classId: "", subjectId: "", academicYear: "", semester: "" };
+}
 
 function cloneGrades(grades) {
   return JSON.parse(JSON.stringify(grades));
 }
 
 export default function TeacherGradesPage() {
+  const initialAssignments = getActiveTeachingAssignments(getStoredUser());
   const topicButtonRef = useRef(null);
-  const [filters, setFilters] = useState(initialFilters);
-  const [assignments, setAssignments] = useState(teacherUser.assignedClasses);
+  const [filters, setFilters] = useState(() => filtersForAssignment(initialAssignments[0]));
+  const [assignments, setAssignments] = useState(initialAssignments);
   const [sheet, setSheet] = useState(null);
   const [savedGrades, setSavedGrades] = useState({});
   const [draftGrades, setDraftGrades] = useState({});
@@ -69,16 +71,17 @@ export default function TeacherGradesPage() {
   const locked = sheet?.status === GRADE_STATUSES.FINALIZED_SUBJECT;
 
   const selectedAssignment = useMemo(
-    () => assignments.find((item) => item.id === filters.classId) || assignments[0],
-    [assignments, filters.classId],
+    () => assignments.find(
+      (item) => (item.classId || item.id) === filters.classId && item.subjectId === filters.subjectId,
+    ) || assignments[0],
+    [assignments, filters.classId, filters.subjectId],
   );
 
   useEffect(() => {
     getTeacherClasses().then((items) => {
       if (!items.length) return;
       setAssignments(items);
-      const first = items[0];
-      setFilters({ classId: first.id, subjectId: first.subjectId, academicYear: first.academicYear, semester: String(first.semester).toUpperCase() });
+      setFilters(filtersForAssignment(items[0]));
     }).catch(() => {});
   }, []);
 
@@ -156,7 +159,7 @@ export default function TeacherGradesPage() {
         throw new Error("INVALID_ASSESSMENT_WEIGHTS");
       }
       const result = await getGradeSheet(filters);
-      const loadedTopics = await getLearningTopics(result.assignment.assignmentId);
+      const loadedTopics = await getLearningTopics(result.assignment.assignmentId, filters);
       const officialGrades = cloneGrades(result.grades);
       setSheet(result);
       setSavedGrades(officialGrades);
@@ -355,7 +358,7 @@ export default function TeacherGradesPage() {
           />
         )}
 
-        {getStoredUser()?.isHomeroomTeacher && selectedAssignment && (
+        {isActiveHomeroomTeacher(getStoredUser()) && selectedAssignment && (
           <HomeroomInformation className={selectedAssignment.name} />
         )}
       </div>
