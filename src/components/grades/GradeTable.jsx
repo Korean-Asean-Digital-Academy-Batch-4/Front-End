@@ -27,7 +27,9 @@ export default function GradeTable({
   topicButtonRef,
   readOnly = false,
   finalGrades = null,
+  lockedStudentIds = [],
 }) {
+  const lockedStudents = new Set(lockedStudentIds);
   return (
     <section id="grade-table-section" className="mt-8 overflow-hidden rounded-2xl bg-white shadow-soft">
       <div className="max-w-full overflow-x-auto">
@@ -39,13 +41,15 @@ export default function GradeTable({
             sortable={!readOnly}
           />
           <tbody>
-            {students.map((student) => (
-              <tr key={student.id} className="group border-t border-[#E9ECF2] hover:bg-[#FBFCFE]">
-                <GradeStudentCell student={student} />
+            {students.map((student) => {
+              const studentLocked = lockedStudents.has(student.id);
+              return (
+              <tr key={student.id} className={`group border-t border-[#E9ECF2] ${studentLocked ? "bg-slate-50/80" : "hover:bg-[#FBFCFE]"}`}>
+                <GradeStudentCell student={student} locked={studentLocked} />
                 {components.map((component) => {
                   const value = grades?.[student.id]?.[component.id];
                   const error = errors?.[`${student.id}:${component.id}`];
-                  return isEditing ? (
+                  return isEditing && !studentLocked ? (
                     <GradeInputCell
                       key={component.id}
                       student={student}
@@ -56,7 +60,7 @@ export default function GradeTable({
                       onChange={(nextValue) => onGradeChange(student.id, component.id, nextValue)}
                     />
                   ) : (
-                    <td key={component.id} className="px-2 py-4 text-center text-sm text-[#20232D]">
+                    <td key={component.id} title={studentLocked ? "Nilai tidak dapat diedit karena rapor telah difinalisasi." : undefined} className={`px-2 py-4 text-center text-sm ${studentLocked ? "cursor-not-allowed bg-slate-50 text-[#64748B]" : "text-[#20232D]"}`}>
                       {value === null || value === undefined || value === "" ? "—" : value}
                     </td>
                   );
@@ -69,7 +73,8 @@ export default function GradeTable({
                   showStatusLabel={!readOnly}
                 />
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

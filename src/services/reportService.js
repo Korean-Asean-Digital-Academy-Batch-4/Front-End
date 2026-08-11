@@ -1,5 +1,5 @@
 import { assessmentComponents, TOTAL_ASSESSMENT_WEIGHT } from "../data/assessmentComponents";
-import { defaultLearningTopics, GRADE_KKM, GRADE_STATUSES, initialGrades } from "../data/gradeData";
+import { defaultLearningTopics, GRADE_KKM } from "../data/gradeData";
 import {
   attendanceByStudent,
   REPORT_STATUSES,
@@ -8,7 +8,7 @@ import {
 } from "../data/reportData";
 import { teacherUser } from "../data/teacherData";
 import { getStoredUser } from "../stores/authStore";
-import { getOfficialGradeRecord, getTopicRecord, saveOfficialGradeRecord } from "../stores/gradeStore";
+import { getOfficialGradeRecord, getTopicRecord } from "../stores/gradeStore";
 import {
   appendReportVersion,
   getSubjectReport,
@@ -223,28 +223,14 @@ export async function finalizeSubjectReport(payload) {
   const report = getSubjectReport(payload.studentId, payload.assignmentId);
   if (!report) throw new Error("REPORT_NOT_FOUND");
   assertReportClassAccess(report.classId);
-  appendReportVersion(report, { action: "FINALIZE", actorId: teacherUser.id });
+  const currentUser = getStoredUser();
+  appendReportVersion(report, { action: "FINALIZE", actorId: currentUser.id });
   const updated = saveSubjectReport({
     ...report,
     status: REPORT_STATUSES.FINALIZED_SUBJECT,
     finalizedAt: new Date().toISOString(),
-    finalizedBy: teacherUser.id,
+    finalizedBy: currentUser.id,
     reportVersion: (report.reportVersion || 1) + 1,
-  });
-  const gradeFilters = {
-    classId: report.classId,
-    subjectId: report.subjectId,
-    academicYear: report.academicYear,
-    semester: report.semester,
-  };
-  const gradeRecord = getOfficialGradeRecord(gradeFilters);
-  saveOfficialGradeRecord({
-    ...gradeFilters,
-    ...(gradeRecord || {}),
-    grades: gradeRecord?.grades || initialGrades,
-    status: GRADE_STATUSES.FINALIZED_SUBJECT,
-    finalizedAt: updated.finalizedAt,
-    finalizedBy: teacherUser.id,
   });
   return updated;
 }

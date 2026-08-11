@@ -18,19 +18,20 @@ export async function getTeacherClasses() {
     }
     return getActiveTeachingAssignments(user);
   }
-  const data = await api.get("/teacher/classes");
-  const classes = data.items || data.classes || data || [];
+
+  const classes = await api.get("/teacher/classes");
   const teachingAssignments = classes.map((item) => ({
-    id: item.id || item.classId,
-    assignmentId: item.assignmentId || item.id || item.classId,
-    classId: item.classId || item.id,
-    name: item.name || item.className,
-    subjectId: item.subjectId || item.subject?.id,
-    subjectName: item.subjectName || item.subject?.name || "Mata Pelajaran",
-    academicYear: item.academicYear || item.academicYearName || "",
-    semester: item.semester || item.semesterName || "",
-    status: item.status || "active",
-  })).filter((item) => item.status === "active");
-  updateStoredUser({ teachingAssignments });
+    id: item.id,
+    assignmentId: `${item.id}:${item.subject_name}`,
+    classId: item.id,
+    name: item.name,
+    subjectId: item.subject_id || item.subject_name,
+    subjectName: item.subject_name,
+    gradeLevel: item.grade_level,
+    academicYear: item.academic_year_name || "-",
+    semester: item.semester_name || "-",
+    status: "active",
+  }));
+  updateStoredUser({ teachingAssignments, assignedClasses: teachingAssignments });
   return teachingAssignments;
 }

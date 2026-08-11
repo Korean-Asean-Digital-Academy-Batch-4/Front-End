@@ -12,8 +12,12 @@ const defaultPeriod = { academicYear: "2026/2027", semester: "Semester Ganjil" }
 
 export default function StudentReportPage() {
   const user = getStoredUser();
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState(defaultPeriod.academicYear);
-  const [selectedSemester, setSelectedSemester] = useState(defaultPeriod.semester);
+  const activePeriod = user?.academicPeriod ? {
+    academicYear: user.academicPeriod.academicYear,
+    semester: `Semester ${user.academicPeriod.semester}`,
+  } : defaultPeriod;
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState(activePeriod.academicYear);
+  const [selectedSemester, setSelectedSemester] = useState(activePeriod.semester);
   const [report, setReport] = useState(null);
   const [status, setStatus] = useState("loading");
   const [toast, setToast] = useState(null);
@@ -41,7 +45,7 @@ export default function StudentReportPage() {
     setDownloading(true);
     try {
       await downloadStudentReport();
-      setToast({ type: "success", message: "Rapor PDF berhasil diunduh." });
+      setToast({ type: "success", message: "File rapor berhasil diunduh." });
     } catch {
       setToast({ type: "error", message: "Rapor belum dapat diunduh." });
     } finally {
@@ -64,7 +68,7 @@ export default function StudentReportPage() {
               disabled={downloading}
               className="h-11 self-start px-5"
             >
-              <Download aria-hidden="true" className="h-4 w-4" /> {downloading ? "Menyiapkan PDF..." : "Download Rapor PDF"}
+              <Download aria-hidden="true" className="h-4 w-4" /> {downloading ? "Menyiapkan file..." : "Download Rapor"}
             </Button>
           )}
         </header>

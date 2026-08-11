@@ -1,4 +1,5 @@
 import { initialSubjectReports } from "../data/reportData";
+import { isReportFinalizedForPeriod } from "../utils/reportFinalization";
 
 export const SUBJECT_REPORTS_KEY = "edutrack_subject_reports";
 export const REPORT_NOTES_KEY = "edutrack_report_notes";
@@ -31,6 +32,14 @@ export function getSubjectReport(studentId, assignmentId) {
   return readSubjectReports().find(
     (report) => report.studentId === studentId && report.assignmentId === assignmentId,
   ) || null;
+}
+
+export function getFinalizedStudentIds(filters) {
+  return new Set(
+    readSubjectReports()
+      .filter((report) => isReportFinalizedForPeriod(report, { ...filters, studentId: report.studentId }))
+      .map((report) => report.studentId),
+  );
 }
 
 export function saveSubjectReport(report) {
@@ -69,4 +78,3 @@ export function saveGenerationJob(job) {
   write(REPORT_JOBS_KEY, jobs);
   return job;
 }
-

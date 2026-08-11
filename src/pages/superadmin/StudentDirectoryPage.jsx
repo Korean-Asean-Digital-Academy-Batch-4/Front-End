@@ -1,7 +1,10 @@
 import { ChevronLeft, ChevronRight, Pencil, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
+import EditFormField from "../../components/superadmin/EditFormField";
 import SuperAdminFilterSelect from "../../components/superadmin/SuperAdminFilterSelect";
+import TableActionButton from "../../components/superadmin/TableActionButton";
 import Button from "../../components/ui/Button";
+import Modal from "../../components/ui/Modal";
 import {
   assignmentAcademicYearOptions,
   assignmentSemesterOptions,
@@ -20,20 +23,24 @@ function paginationPages(currentPage, pageCount) {
 }
 
 export default function StudentDirectoryPage() {
+  const [students, setStudents] = useState(() => classXStudentPreview.map((student) => ({ ...student })));
   const [selectedSemester, setSelectedSemester] = useState("Ganjil");
   const [selectedAcademicYear, setSelectedAcademicYear] = useState("2023/2024");
   const [selectedClass, setSelectedClass] = useState("X-MIPA-1");
   const [studentSearch, setStudentSearch] = useState("");
   const [page, setPage] = useState(1);
   const [actionMessage, setActionMessage] = useState("");
+  const [editingStudent, setEditingStudent] = useState(null);
+  const [studentForm, setStudentForm] = useState({ name: "", nis: "" });
+  const [formErrors, setFormErrors] = useState({});
 
   const filteredStudents = useMemo(() => {
     const query = studentSearch.trim().toLowerCase();
-    if (!query) return classXStudentPreview;
-    return classXStudentPreview.filter((student) => (
+    if (!query) return students;
+    return students.filter((student) => (
       student.name.toLowerCase().includes(query) || student.nis.includes(query)
     ));
-  }, [studentSearch]);
+  }, [studentSearch, students]);
 
   const totalStudents = studentSearch.trim() ? filteredStudents.length : classXStudentTotal;
   const pageCount = Math.max(1, Math.ceil(totalStudents / PAGE_SIZE));
@@ -47,7 +54,37 @@ export default function StudentDirectoryPage() {
   };
 
   const handleEditStudent = (student) => {
-    setActionMessage(`Edit ${student.name} menunggu prototype lanjutan.`);
+    setEditingStudent(student);
+    setStudentForm({ name: student.name, nis: student.nis });
+    setFormErrors({});
+  };
+
+  const closeEditModal = () => {
+    setEditingStudent(null);
+    setFormErrors({});
+  };
+
+  const updateStudentForm = (field) => (event) => {
+    setStudentForm((current) => ({ ...current, [field]: event.target.value }));
+    setFormErrors((current) => ({ ...current, [field]: "" }));
+  };
+
+  const saveStudent = (event) => {
+    event.preventDefault();
+    const errors = {};
+    if (!studentForm.name.trim()) errors.name = "Nama Siswa wajib diisi.";
+    if (!studentForm.nis.trim()) errors.nis = "NIS wajib diisi.";
+    if (Object.keys(errors).length) {
+      setFormErrors(errors);
+      return;
+    }
+    setStudents((current) => current.map((student) => student.id === editingStudent.id ? {
+      ...student,
+      name: studentForm.name.trim(),
+      nis: studentForm.nis.trim(),
+    } : student));
+    setActionMessage(`Data ${studentForm.name.trim()} berhasil diperbarui.`);
+    closeEditModal();
   };
 
   const handleDeleteStudent = (student) => {
@@ -104,12 +141,8 @@ export default function StudentDirectoryPage() {
                   <td className="px-4 py-4 font-medium">{student.name}</td>
                   <td className="px-4 py-4">
                     <div className="flex items-center justify-center gap-2">
-                      <button type="button" aria-label={`Edit ${student.name}`} onClick={() => handleEditStudent(student)} className="rounded-md p-2 text-[#596174] hover:bg-[#EEF3FC] hover:text-[#0756D9]">
-                        <Pencil aria-hidden="true" className="h-4 w-4" />
-                      </button>
-                      <button type="button" aria-label={`Hapus ${student.name}`} onClick={() => handleDeleteStudent(student)} className="rounded-md p-2 text-[#596174] hover:bg-red-50 hover:text-red-600">
-                        <Trash2 aria-hidden="true" className="h-4 w-4" />
-                      </button>
+                      <TableActionButton icon={Pencil} label={`Edit ${student.name}`} onClick={() => handleEditStudent(student)} />
+                      <TableActionButton icon={Trash2} label={`Hapus ${student.name}`} tone="danger" onClick={() => handleDeleteStudent(student)} />
                     </div>
                   </td>
                 </tr>
@@ -143,6 +176,16 @@ export default function StudentDirectoryPage() {
         </footer>
         <p aria-live="polite" className="sr-only">{actionMessage}</p>
       </section>
+      <Modal open={Boolean(editingStudent)} onClose={closeEditModal} title="Edit Data Siswa" description="Perbarui identitas siswa pada database sekolah.">
+        <form noValidate onSubmit={saveStudent} className="space-y-4">
+          <EditFormField id="student-name" label="Nama Siswa" value={studentForm.name} onChange={updateStudentForm("name")} error={formErrors.name} autoFocus />
+          <EditFormField id="student-nis" label="NIS" value={studentForm.nis} onChange={updateStudentForm("nis")} error={formErrors.nis} inputMode="numeric" />
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+            <Button variant="secondary" onClick={closeEditModal}>Batal</Button>
+            <Button type="submit">Simpan Perubahan</Button>
+          </div>
+        </form>
+      </Modal>
     </main>
   );
 }

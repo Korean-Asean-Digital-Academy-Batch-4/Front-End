@@ -915,6 +915,15 @@ Install dependency:
 npm install
 ```
 
+Salin konfigurasi development:
+
+```bash
+cp .env.example .env
+```
+
+Jalankan backend `EduTrack_Backend-main` pada port `4000` terlebih dahulu.
+Vite meneruskan request `/api` ke backend melalui development proxy.
+
 Jalankan development server:
 
 ```bash
@@ -1153,21 +1162,22 @@ Backend
 Database
 ```
 
-Contoh:
+Authentication telah mengikuti kontrak `EduTrack_Backend-main`:
 
 ```text
-Frontend
-   ↓
-POST /login
-   ↓
-Backend
-   ↓
-Validasi User
-   ↓
-Token / Session
+POST /api/auth/login → menerima identifier dan password
+                     → mengembalikan token, role, dan profile
 ```
 
-Endpoint sebenarnya harus mengikuti **API Contract Backend** project EduTrack.
+Frontend menyimpan sesi pengguna dan JWT di `localStorage`. Semua request API
+memakai centralized client pada `src/services/api/` dan mengirim header
+`Authorization: Bearer <token>`. Respons `401` otomatis membersihkan sesi lokal.
+
+Endpoint guru, presensi, nilai, wali kelas, rapor, siswa, mata pelajaran,
+akun impor, tahun ajaran, dan kelas telah dipetakan ke backend. Backend belum
+menyediakan endpoint ganti password untuk pengguna yang sedang login dan belum
+menyediakan endpoint baca komponen penilaian; kedua bagian tersebut ditangani
+secara aman oleh frontend tanpa mengirim request ke route yang tidak tersedia.
 
 ---
 

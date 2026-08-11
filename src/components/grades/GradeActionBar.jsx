@@ -18,8 +18,8 @@ export default function GradeActionBar({
     return (
       <footer className="border-t border-[#E4E8F1] bg-white px-4 py-4 sm:px-6">
         <div className="flex flex-col gap-2 text-sm text-[#64748B] sm:flex-row sm:items-center sm:justify-between">
-          <p className="inline-flex items-center gap-2"><LockKeyhole aria-hidden="true" className="h-4 w-4 text-[#7C3AED]" /> Nilai telah dikunci. Koreksi memerlukan proses buka kembali dengan alasan.</p>
-          <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">Rapor Mapel Telah Difinalisasi</span>
+          <p className="inline-flex items-center gap-2"><LockKeyhole aria-hidden="true" className="h-4 w-4 text-emerald-600" /> Rapor telah difinalisasi. Nilai tidak dapat diedit.</p>
+          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">Rapor Telah Difinalisasi</span>
         </div>
       </footer>
     );

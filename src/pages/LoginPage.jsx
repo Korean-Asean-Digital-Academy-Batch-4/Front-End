@@ -15,8 +15,7 @@ const loginSchema = z.object({
   username: z.string().trim().min(1, "Username wajib diisi."),
   password: z
     .string()
-    .min(1, "Kata sandi wajib diisi.")
-    .min(8, "Kata sandi minimal terdiri dari 8 karakter."),
+    .min(1, "Kata sandi wajib diisi."),
 });
 
 const AUTH_ERROR_MESSAGE =
@@ -67,8 +66,8 @@ export default function LoginPage() {
         ? requestedPath
         : null;
       navigate(safeRequestedPath || fallback, { replace: true });
-    } catch {
-      setAuthError(AUTH_ERROR_MESSAGE);
+    } catch (error) {
+      setAuthError(error.message || AUTH_ERROR_MESSAGE);
       requestAnimationFrame(() => passwordRef.current?.focus());
     }
   };

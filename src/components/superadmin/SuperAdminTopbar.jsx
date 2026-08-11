@@ -1,7 +1,7 @@
 import { LogOut, Menu, UserRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { clearAuthSession } from "../../stores/authStore";
+import { logout as endSession } from "../../services/authService";
 
 export default function SuperAdminTopbar({ onOpenMobile }) {
   const navigate = useNavigate();
@@ -26,9 +26,9 @@ export default function SuperAdminTopbar({ onOpenMobile }) {
     };
   }, [isProfileMenuOpen]);
 
-  const logout = () => {
+  const logout = async () => {
     setIsProfileMenuOpen(false);
-    clearAuthSession();
+    await endSession().catch(() => undefined);
     navigate("/login", { replace: true });
   };
 

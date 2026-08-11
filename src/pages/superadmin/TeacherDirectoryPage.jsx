@@ -1,6 +1,10 @@
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { useState } from "react";
+import EditFormField from "../../components/superadmin/EditFormField";
+import TableActionButton from "../../components/superadmin/TableActionButton";
 import Badge from "../../components/ui/Badge";
+import Button from "../../components/ui/Button";
+import Modal from "../../components/ui/Modal";
 import { teacherDirectory } from "../../data/superAdminManagementData";
 import { cn } from "../../utils/cn";
 
@@ -12,10 +16,47 @@ const avatarTones = {
 };
 
 export default function TeacherDirectoryPage() {
+  const [teachers, setTeachers] = useState(() => teacherDirectory.map((teacher) => ({ ...teacher })));
+  const [editingTeacher, setEditingTeacher] = useState(null);
+  const [teacherForm, setTeacherForm] = useState({ name: "", nip: "", email: "" });
+  const [formErrors, setFormErrors] = useState({});
   const [actionMessage, setActionMessage] = useState("");
 
   const handleEditTeacher = (teacher) => {
-    setActionMessage(`Edit ${teacher.name} menunggu prototype lanjutan.`);
+    setEditingTeacher(teacher);
+    setTeacherForm({ name: teacher.name, nip: teacher.nip, email: teacher.email });
+    setFormErrors({});
+  };
+
+  const closeEditModal = () => {
+    setEditingTeacher(null);
+    setFormErrors({});
+  };
+
+  const updateTeacherForm = (field) => (event) => {
+    setTeacherForm((current) => ({ ...current, [field]: event.target.value }));
+    setFormErrors((current) => ({ ...current, [field]: "" }));
+  };
+
+  const saveTeacher = (event) => {
+    event.preventDefault();
+    const errors = {};
+    if (!teacherForm.name.trim()) errors.name = "Nama Guru wajib diisi.";
+    if (!teacherForm.nip.trim()) errors.nip = "NIP wajib diisi.";
+    if (!teacherForm.email.trim()) errors.email = "Email wajib diisi.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(teacherForm.email.trim())) errors.email = "Format email tidak valid.";
+    if (Object.keys(errors).length) {
+      setFormErrors(errors);
+      return;
+    }
+    setTeachers((current) => current.map((teacher) => teacher.id === editingTeacher.id ? {
+      ...teacher,
+      name: teacherForm.name.trim(),
+      nip: teacherForm.nip.trim(),
+      email: teacherForm.email.trim(),
+    } : teacher));
+    setActionMessage(`Data ${teacherForm.name.trim()} berhasil diperbarui.`);
+    closeEditModal();
   };
 
   return (
@@ -38,7 +79,7 @@ export default function TeacherDirectoryPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#D7DCE7] text-sm text-[#343946]">
-              {teacherDirectory.map((teacher) => (
+              {teachers.map((teacher) => (
                 <tr key={teacher.id} className="hover:bg-[#FAFBFD]">
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-3">
@@ -61,14 +102,7 @@ export default function TeacherDirectoryPage() {
                     <span className="block">{teacher.subjectAssignment}</span>
                   </td>
                   <td className="px-5 py-5 text-center">
-                    <button
-                      type="button"
-                      aria-label={`Edit ${teacher.name}`}
-                      onClick={() => handleEditTeacher(teacher)}
-                      className="rounded-md p-2 text-[#697184] transition-colors hover:bg-[#EEF3FC] hover:text-[#0756D9]"
-                    >
-                      <Pencil aria-hidden="true" className="h-4 w-4" />
-                    </button>
+                    <TableActionButton icon={Pencil} label={`Edit ${teacher.name}`} onClick={() => handleEditTeacher(teacher)} />
                   </td>
                 </tr>
               ))}
@@ -90,6 +124,17 @@ export default function TeacherDirectoryPage() {
         </footer>
         <p aria-live="polite" className="sr-only">{actionMessage}</p>
       </section>
+      <Modal open={Boolean(editingTeacher)} onClose={closeEditModal} title="Edit Data Guru" description="Perbarui identitas guru tanpa mengubah penugasan mengajar.">
+        <form noValidate onSubmit={saveTeacher} className="space-y-4">
+          <EditFormField id="teacher-name" label="Nama Guru" value={teacherForm.name} onChange={updateTeacherForm("name")} error={formErrors.name} autoFocus />
+          <EditFormField id="teacher-nip" label="NIP" value={teacherForm.nip} onChange={updateTeacherForm("nip")} error={formErrors.nip} inputMode="numeric" />
+          <EditFormField id="teacher-email" label="Email" type="email" value={teacherForm.email} onChange={updateTeacherForm("email")} error={formErrors.email} />
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+            <Button variant="secondary" onClick={closeEditModal}>Batal</Button>
+            <Button type="submit">Simpan Perubahan</Button>
+          </div>
+        </form>
+      </Modal>
     </main>
   );
 }

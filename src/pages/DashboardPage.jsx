@@ -1,7 +1,8 @@
 import { LogOut } from "lucide-react";
 import { Navigate, useNavigate } from "react-router-dom";
 import Button from "../components/ui/Button";
-import { clearAuthSession, getStoredUser } from "../stores/authStore";
+import { getStoredUser } from "../stores/authStore";
+import { logout as endSession } from "../services/authService";
 
 const dashboardByRole = {
   admin: "/superadmin/dashboard",
@@ -13,8 +14,8 @@ export default function DashboardPage({ adminMode = false }) {
   const user = getStoredUser();
   const navigate = useNavigate();
 
-  const logout = () => {
-    clearAuthSession();
+  const logout = async () => {
+    await endSession().catch(() => undefined);
     navigate("/login", { replace: true });
   };
 

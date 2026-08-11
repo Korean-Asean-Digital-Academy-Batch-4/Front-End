@@ -11,6 +11,11 @@ import { getStoredUser } from "../stores/authStore";
 import { api, downloadBlob } from "./apiClient";
 
 const wait = (duration) => new Promise((resolve) => setTimeout(resolve, duration));
+const COMPONENT_NAMES = {
+  T1: "Tugas 1", T2: "Tugas 2", T3: "Tugas 3",
+  U1: "Ulangan Harian 1", U2: "Ulangan Harian 2", U3: "Ulangan Harian 3",
+  UTS: "Ujian Tengah Semester", UAS: "Ujian Akhir Semester",
+};
 
 function requireCurrentStudent() {
   const user = getStoredUser();
@@ -18,57 +23,92 @@ function requireCurrentStudent() {
   return user;
 }
 
+function demoForStudent(collection, user) {
+  return collection[user.id] || Object.values(collection)[0];
+}
+
+function groupGradeRows(rows) {
+  const subjects = new Map();
+  rows.forEach((row) => {
+    if (!subjects.has(row.subject_id)) {
+      subjects.set(row.subject_id, {
+        id: row.subject_id,
+        subject: `${row.subject_name} ${row.grade_level}`,
+        name: `${row.subject_name} ${row.grade_level}`,
+        kkm: Number(row.kkm),
+        badgeTone: "blue",
+        components: [],
+      });
+    }
+    subjects.get(row.subject_id).components.push({
+      id: row.component_code,
+      name: COMPONENT_NAMES[row.component_code] || row.component_code,
+      topic: row.topic || null,
+      score: row.score == null ? null : Number(row.score),
+      weight: Number(row.weight_percent),
+    });
+  });
+  return [...subjects.values()].map((subject) => {
+    const complete = subject.components.every((component) => component.score != null);
+    const average = complete
+      ? subject.components.reduce((sum, component) => sum + component.score * component.weight, 0) / 100
+      : 0;
+    return { ...subject, average, score: complete ? Number(average.toFixed(2)) : null };
+  });
+}
+
+function normalizeAttendance(items) {
+  const percentages = items.map((item) => item.presentPercent).filter(Number.isFinite);
+  const overallPercentage = percentages.length
+    ? Math.round(percentages.reduce((sum, value) => sum + value, 0) / percentages.length)
+    : 0;
+  return {
+    overallPercentage,
+    subjects: items.map((item, index) => ({
+      id: `${index}:${item.subjectName}`,
+      name: item.subjectName,
+      subjectName: item.subjectName,
+      totalSessions: item.totalSessions,
+      percentage: item.presentPercent ?? 0,
+    })),
+  };
+}
+
 export async function getStudentDashboard() {
   const user = requireCurrentStudent();
   if (!appConfig.useMockApi) {
-    const [gradesData, attendanceData] = await Promise.all([
+    const [gradeRows, attendanceRows] = await Promise.all([
       api.get("/student/grades"),
       api.get("/student/attendance"),
     ]);
-    const subjects = gradesData?.subjects || gradesData?.items || [];
-    return {
-      attendancePercentage: attendanceData?.overallPercentage ?? attendanceData?.percentage ?? 0,
-      subjects: subjects.map((subject) => ({
-        id: subject.id || subject.subjectId,
-        name: subject.name || subject.subjectName,
-        score: subject.finalScore ?? subject.average ?? null,
-        status: "Aktif",
-        icon: "book",
-        accent: "blue",
-      })),
-    };
+    const subjects = groupGradeRows(gradeRows).map((subject) => ({
+      id: subject.id,
+      name: subject.name,
+      score: subject.score,
+      status: "Aktif",
+      icon: "book",
+      accent: "blue",
+    }));
+    return { attendancePercentage: normalizeAttendance(attendanceRows).overallPercentage, subjects };
   }
   await wait(350);
-  const studentDashboardData = studentDashboardDataByStudentId[user.id];
-  if (!studentDashboardData) throw new Error("STUDENT_DATA_NOT_FOUND");
-  return {
-    ...studentDashboardData,
-    subjects: studentDashboardData.subjects.map((subject) => ({ ...subject })),
-  };
+  const data = demoForStudent(studentDashboardDataByStudentId, user);
+  return { ...data, subjects: data.subjects.map((subject) => ({ ...subject })) };
 }
 
 export async function getStudentAiInsight() {
   const user = requireCurrentStudent();
   if (!appConfig.useMockApi) return api.post("/student/ai-insight");
   await wait(1500);
-
-  return {
-    ...mockAiInsight,
-    studentId: user.id,
-  };
+  return { ...mockAiInsight, studentId: user.id };
 }
 
 export async function getStudentGrades({ academicYear, semester }) {
   const user = requireCurrentStudent();
-  if (!appConfig.useMockApi) {
-    const data = await api.get("/student/grades", { query: { academicYear, semester } });
-    return data?.subjects || data?.items || data || [];
-  }
+  if (!appConfig.useMockApi) return groupGradeRows(await api.get("/student/grades"));
   await wait(300);
-  const grades = studentGradesDataByStudentId[user.id];
-  if (!grades) throw new Error("STUDENT_GRADES_NOT_FOUND");
-  if (grades.academicYear !== academicYear || grades.semester !== semester) return [];
-
+  const grades = demoForStudent(studentGradesDataByStudentId, user);
+  if (!grades || grades.academicYear !== academicYear || grades.semester !== semester) return [];
   return grades.subjects.map((subject) => ({
     ...subject,
     components: subject.components.map((component) => ({ ...component })),
@@ -77,12 +117,32 @@ export async function getStudentGrades({ academicYear, semester }) {
 
 export async function getStudentReport({ academicYear, semester }) {
   const user = requireCurrentStudent();
-  if (!appConfig.useMockApi) return api.get("/student/report-card", { query: { academicYear, semester } });
+  if (!appConfig.useMockApi) {
+    const report = await api.get("/student/report-card");
+    if (report.status !== "Distributed") return report;
+    const [gradeRows, attendanceRows] = await Promise.all([
+      api.get("/student/grades"),
+      api.get("/student/attendance"),
+    ]);
+    const subjects = groupGradeRows(gradeRows).map((subject) => ({
+      id: subject.id,
+      name: subject.name,
+      score: subject.score,
+    }));
+    const scored = subjects.map((subject) => subject.score).filter(Number.isFinite);
+    return {
+      ...report,
+      subjects,
+      average: scored.length
+        ? Number((scored.reduce((sum, score) => sum + score, 0) / scored.length).toFixed(2))
+        : 0,
+      attendancePercentage: normalizeAttendance(attendanceRows).overallPercentage,
+      teacherNote: report.general_note || "-",
+    };
+  }
   await wait(300);
-  const report = studentReportDataByStudentId[user.id];
-  if (!report) throw new Error("STUDENT_REPORT_NOT_FOUND");
-  if (report.academicYear !== academicYear || report.semester !== semester) return null;
-
+  const report = demoForStudent(studentReportDataByStudentId, user);
+  if (!report || report.academicYear !== academicYear || report.semester !== semester) return null;
   return {
     ...report,
     teacherNote: report.teacherNote.replaceAll("{studentName}", user.name),
@@ -93,56 +153,31 @@ export async function getStudentReport({ academicYear, semester }) {
 export async function getStudentProfile() {
   const user = requireCurrentStudent();
   if (!appConfig.useMockApi) {
-    return {
-      ...user,
-      roleLabel: "Siswa",
-      joinedAt: user.joinedAt || "-",
-      status: "Aktif",
-    };
+    return { ...user, roleLabel: "Siswa", joinedAt: "-", status: "Aktif" };
   }
   await wait(250);
-  const profile = studentProfileDataByStudentId[user.id];
-  if (!profile) throw new Error("STUDENT_PROFILE_NOT_FOUND");
-
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    nisn: user.nisn,
-    className: user.className,
-    ...profile,
-  };
+  const profile = demoForStudent(studentProfileDataByStudentId, user);
+  return { ...profile, id: user.id, name: user.name, role: user.role };
 }
 
 export async function getStudentAttendance() {
   const user = requireCurrentStudent();
-  if (!appConfig.useMockApi) return api.get("/student/attendance");
+  if (!appConfig.useMockApi) return normalizeAttendance(await api.get("/student/attendance"));
   await wait(300);
-  const attendance = studentAttendanceDataByStudentId[user.id];
-  if (!attendance) throw new Error("STUDENT_ATTENDANCE_NOT_FOUND");
-  return attendance;
+  return demoForStudent(studentAttendanceDataByStudentId, user);
 }
 
 export async function downloadStudentReport() {
   const user = requireCurrentStudent();
   if (!appConfig.useMockApi) {
     const blob = await api.download("/student/report-card/download");
-    downloadBlob(blob, `rapor-${user.nis || user.id}.pdf`);
+    downloadBlob(blob, `rapor-${user.nis || user.id}.txt`);
     return;
   }
-
-  const report = studentReportDataByStudentId[user.id];
+  const report = demoForStudent(studentReportDataByStudentId, user);
   if (!report || report.status !== "Distributed") throw new Error("REPORT_NOT_DISTRIBUTED");
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4" });
-  doc.setFontSize(18);
   doc.text("Rapor Semester EduTrack", 20, 24);
-  doc.setFontSize(11);
-  doc.text(`Nama: ${user.name}`, 20, 36);
-  doc.text(`Periode: ${report.semester} ${report.academicYear}`, 20, 43);
-  report.subjects.forEach((subject, index) => {
-    doc.text(`${subject.name}: ${subject.score ?? "-"}`, 20, 56 + index * 8);
-  });
   doc.save(`rapor-${user.nis || user.id}.pdf`);
 }

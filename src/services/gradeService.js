@@ -24,6 +24,7 @@ import {
   saveOfficialGradeRecord,
   saveTopicRecord,
 } from "../stores/gradeStore";
+import { getFinalizedStudentIds } from "../stores/reportStore";
 import { api } from "./apiClient";
 import { isValidGradePayload } from "../utils/gradeValidation";
 
@@ -62,22 +63,56 @@ function assertValidGrades(grades) {
   }
 }
 
+function getGradeLockState(filters, grades) {
+  const lockedStudentIds = getFinalizedStudentIds(filters);
+  const officialGrades = getOfficialGradeRecord(filters)?.grades || {};
+  const studentIds = new Set([
+    ...Object.keys(initialGrades),
+    ...Object.keys(officialGrades),
+    ...Object.keys(grades || {}),
+  ]);
+  const currentGrades = Object.fromEntries(
+    [...studentIds].map((studentId) => [
+      studentId,
+      { ...initialGrades[studentId], ...officialGrades[studentId] },
+    ]),
+  );
+  lockedStudentIds.forEach((studentId) => {
+    if (
+      Object.prototype.hasOwnProperty.call(grades || {}, studentId) &&
+      JSON.stringify(grades[studentId]) !== JSON.stringify(currentGrades[studentId])
+    ) {
+      throw new Error("REPORT_FINALIZED_GRADE_LOCKED");
+    }
+  });
+  const editableGrades = Object.fromEntries(
+    Object.entries(grades || {}).filter(([studentId]) => !lockedStudentIds.has(studentId)),
+  );
+  return { lockedStudentIds, currentGrades, editableGrades };
+}
+
 export async function getGradeSheet(filters) {
   const authorizedAssignment = resolveAssignment(filters);
+  const lockedStudentIds = [...getFinalizedStudentIds(filters)];
   if (!appConfig.useMockApi) {
-    const data = await api.get(`/teacher/classes/${filters.classId}/grades`);
-    const grades = data.grades || {};
-    (data.entries || []).forEach((entry) => {
-      grades[entry.studentId] ||= {};
-      grades[entry.studentId][entry.componentCode] = entry.score;
+    const rows = await api.get(`/teacher/classes/${filters.classId}/grades`);
+    const studentMap = new Map();
+    const grades = {};
+    rows.forEach((row) => {
+      if (!studentMap.has(row.student_id)) {
+        studentMap.set(row.student_id, { id: row.student_id, name: row.student_name });
+      }
+      grades[row.student_id] ||= {};
+      grades[row.student_id][row.component_code] = row.score == null ? null : Number(row.score);
     });
     return {
-      assignment: data.assignment || { ...authorizedAssignment, assignmentId: data.assignmentId || authorizedAssignment.assignmentId },
-      students: data.students || [],
+      assignment: authorizedAssignment,
+      students: [...studentMap.values()],
       grades,
       localDraft: getGradeDraft(filters),
-      status: data.status || GRADE_STATUSES.DRAFT,
-      savedAt: data.savedAt || null,
+      status: GRADE_STATUSES.DRAFT,
+      savedAt: null,
+      lockedStudentIds,
     };
   }
   await wait(650);
@@ -103,21 +138,30 @@ export async function getGradeSheet(filters) {
     localDraft,
     status: officialRecord?.status || GRADE_STATUSES.DRAFT,
     savedAt: officialRecord?.savedAt || null,
+    lockedStudentIds,
   };
 }
 
 export async function saveGradeDraft(payload) {
   resolveAssignment(payload);
   assertValidGrades(payload.grades);
+  const { editableGrades } = getGradeLockState(payload, payload.grades);
+  if (!Object.keys(editableGrades).length) throw new Error("ALL_GRADES_LOCKED");
   await wait(120);
-  return saveGradeDraftRecord({ ...payload, draftSavedAt: new Date().toISOString() });
+  return saveGradeDraftRecord({ ...payload, grades: editableGrades, draftSavedAt: new Date().toISOString() });
 }
 
 export async function saveGrades(payload) {
   resolveAssignment(payload);
   assertValidGrades(payload.grades);
+  const { lockedStudentIds, currentGrades, editableGrades } = getGradeLockState(payload, payload.grades);
+  if (!Object.keys(editableGrades).length) throw new Error("ALL_GRADES_LOCKED");
+  const safeGrades = { ...payload.grades };
+  lockedStudentIds.forEach((studentId) => {
+    if (currentGrades[studentId]) safeGrades[studentId] = currentGrades[studentId];
+  });
   if (!appConfig.useMockApi) {
-    const entries = Object.entries(payload.grades).flatMap(([studentId, scores]) =>
+    const entries = Object.entries(editableGrades).flatMap(([studentId, scores]) =>
       Object.entries(scores).map(([componentCode, score]) => ({
         studentId,
         componentCode,
@@ -125,11 +169,16 @@ export async function saveGrades(payload) {
       })),
     );
     const data = await api.put(`/teacher/classes/${payload.classId}/grades`, { entries });
-    return { success: true, savedAt: new Date().toISOString(), data: { ...data, grades: payload.grades, status: GRADE_STATUSES.DRAFT } };
+    return {
+      success: true,
+      savedAt: new Date().toISOString(),
+      data: { ...data, grades: safeGrades, status: GRADE_STATUSES.DRAFT },
+    };
   }
   await wait(800);
   const record = saveOfficialGradeRecord({
     ...payload,
+    grades: { ...currentGrades, ...editableGrades },
     status: payload.status || GRADE_STATUSES.DRAFT,
     savedAt: new Date().toISOString(),
     savedBy: getStoredUser().id,
@@ -140,17 +189,31 @@ export async function saveGrades(payload) {
 export async function getLearningTopics(assignmentId, filters) {
   const assignment = resolveAssignment(filters);
   if (assignment.assignmentId !== assignmentId) throw new Error("UNAUTHORIZED_ASSIGNMENT");
+  if (!appConfig.useMockApi) {
+    const data = await api.get(`/teacher/classes/${filters.classId}/assessment-topics`);
+    return Object.fromEntries(
+      data.topics.map((item) => [item.component_code, item.topic || ""]),
+    );
+  }
   await wait(250);
   const record = getTopicRecord(assignmentId);
   return { ...defaultLearningTopics, ...record?.topics };
 }
 
 export async function saveLearningTopics(payload) {
-  await wait(650);
   const assignment = resolveAssignment(payload);
   if (assignment.assignmentId !== payload.assignmentId) {
     throw new Error("UNAUTHORIZED_ASSIGNMENT");
   }
+  if (!appConfig.useMockApi) {
+    return api.put(`/teacher/classes/${payload.classId}/assessment-topics`, {
+      topics: assessmentComponents.map((component) => ({
+        componentCode: component.id,
+        topic: payload.topics[component.id] || "",
+      })),
+    });
+  }
+  await wait(650);
   return saveTopicRecord({ ...payload, savedAt: new Date().toISOString(), savedBy: getStoredUser().id });
 }
 

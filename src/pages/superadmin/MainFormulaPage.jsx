@@ -1,13 +1,48 @@
 import { CheckCircle2, Sigma } from "lucide-react";
+import { useEffect, useState } from "react";
 import Badge from "../../components/ui/Badge";
 import { formulaCategoryColors, mainFormula } from "../../data/superAdminManagementData";
+import { getAssessmentComponents } from "../../services/adminService";
 
 const CATEGORY_ORDER = ["UAS", "UTS", "Ulangan Harian", "Tugas"];
 
 export default function MainFormulaPage() {
-  const totalWeight = mainFormula.components.reduce((total, component) => total + component.weight, 0);
+  const [formula, setFormula] = useState(mainFormula);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    getAssessmentComponents()
+      .then((components) => {
+        if (!active) return;
+        setFormula({
+          ...mainFormula,
+          components: components.map((component) => ({
+            code: component.kode,
+            name: component.nama,
+            weight: component.bobot,
+            category: component.kode === "UAS"
+              ? "UAS"
+              : component.kode === "UTS"
+                ? "UTS"
+                : component.kode.startsWith("U")
+                  ? "Ulangan Harian"
+                  : "Tugas",
+          })),
+        });
+      })
+      .catch((error) => { if (active) setLoadError(error.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  if (loading) return <main className="mx-auto w-full max-w-[1160px] px-4 py-8"><p role="status" className="rounded-lg border border-[#D7DCE7] bg-white p-4 text-sm text-[#697184]">Memuat komponen penilaian...</p></main>;
+  if (loadError) return <main className="mx-auto w-full max-w-[1160px] px-4 py-8"><p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{loadError}</p></main>;
+
+  const totalWeight = formula.components.reduce((total, component) => total + component.weight, 0);
   const isValid = totalWeight === 100;
-  const categoryWeights = mainFormula.components.reduce((totals, component) => ({
+  const categoryWeights = formula.components.reduce((totals, component) => ({
     ...totals,
     [component.category]: (totals[component.category] || 0) + component.weight,
   }), {});
@@ -34,12 +69,12 @@ export default function MainFormulaPage() {
                 <Sigma aria-hidden="true" className="h-6 w-6" />
               </span>
               <div>
-                <h2 id="formula-name" className="text-base font-medium text-[#20232D]">{mainFormula.name}</h2>
-                <p className="mt-1 text-sm text-[#555D6E]">Diterapkan ke: {mainFormula.appliedTo.join(", ")}</p>
+                <h2 id="formula-name" className="text-base font-medium text-[#20232D]">{formula.name}</h2>
+                <p className="mt-1 text-sm text-[#555D6E]">Diterapkan ke: {formula.appliedTo.join(", ")}</p>
               </div>
             </div>
             <Badge className="self-start bg-emerald-50 font-medium uppercase text-emerald-600 sm:self-auto">
-              <span aria-hidden="true">●</span> {mainFormula.status === "active" ? "Aktif" : "Tidak Aktif"}
+              <span aria-hidden="true">●</span> {formula.status === "active" ? "Aktif" : "Tidak Aktif"}
             </Badge>
           </div>
 
@@ -52,7 +87,7 @@ export default function MainFormulaPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#D7DCE7] text-base text-[#20232D]">
-                {mainFormula.components.map((component) => (
+                {formula.components.map((component) => (
                   <tr key={component.code}>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">

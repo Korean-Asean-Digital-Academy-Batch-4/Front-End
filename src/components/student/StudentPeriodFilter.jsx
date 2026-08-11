@@ -33,7 +33,7 @@ export default function StudentPeriodFilter({
           disabled={loading}
           className={selectClassName}
         >
-          <option value="2026/2027">2026/2027</option>
+          <option value={academicYear}>{academicYear}</option>
         </select>
       </label>
       <label className="text-[10px] font-medium uppercase tracking-wide text-[#697184]">
@@ -44,7 +44,7 @@ export default function StudentPeriodFilter({
           disabled={loading}
           className={selectClassName}
         >
-          <option value="Semester Ganjil">Semester Ganjil</option>
+          <option value={semester}>{semester}</option>
         </select>
       </label>
       <button

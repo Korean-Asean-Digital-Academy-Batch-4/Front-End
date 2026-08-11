@@ -20,4 +20,3 @@ export function canGenerateReport(status) {
 export function isReportLocked(status) {
   return status === REPORT_STATUSES.FINALIZED_SUBJECT;
 }
-

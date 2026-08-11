@@ -19,7 +19,7 @@ export const reportStudents = [
 
 export const reportScores = {
   ...initialGrades,
-  "STD-004": { T1: 90, T2: 89, UH1: 85, UH2: 89, UTS: 85, UAS: 90 },
+  "STD-004": { T1: 90, T2: 89, U1: 85, U2: 89, UTS: 85, UAS: 90 },
 };
 
 export const attendanceByStudent = {
@@ -84,4 +84,3 @@ export const initialSubjectReports = [
 ];
 
 export const reportAssessmentComponents = assessmentComponents;
-

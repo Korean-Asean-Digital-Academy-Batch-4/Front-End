@@ -25,11 +25,43 @@ function readMockStatus() {
 export async function getHomeroomWorkspace(classId) {
   assertHomeroomClassAccess(classId);
   if (!appConfig.useMockApi) {
-    const [overview, completeness] = await Promise.all([
+    const [rawOverview, rawCompleteness] = await Promise.all([
       api.get(`/homeroom/classes/${classId}/overview`),
       api.get(`/homeroom/classes/${classId}/completeness`),
     ]);
-    return { overview, completeness, status: overview?.reportStatus || completeness?.reportStatus || "Draft" };
+    let status = "Draft";
+    const firstStudentId = rawOverview.students?.[0]?.id;
+    if (firstStudentId) {
+      try {
+        const report = await api.get(`/homeroom/report-cards/${firstStudentId}`);
+        status = report.status || status;
+      } catch (error) {
+        if (error.status !== 404) throw error;
+      }
+    }
+    const scores = rawOverview.grades
+      .map((item) => item.final_score)
+      .filter((value) => value != null)
+      .map(Number);
+    return {
+      status,
+      overview: {
+        ...rawOverview,
+        studentCount: rawOverview.students.length,
+        average: scores.length
+          ? Number((scores.reduce((sum, value) => sum + value, 0) / scores.length).toFixed(2))
+          : null,
+      },
+      completeness: {
+        subjects: rawCompleteness.map((item) => ({
+          ...item,
+          id: item.subjectId,
+          name: item.subjectName,
+          complete: item.isComplete,
+        })),
+        complete: rawCompleteness.length > 0 && rawCompleteness.every((item) => item.isComplete),
+      },
+    };
   }
   await wait(450);
   return {

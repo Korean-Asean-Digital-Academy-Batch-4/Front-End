@@ -4,7 +4,7 @@ import Modal from "../ui/Modal";
 
 export default function FinalizeConfirmationModal({ open, studentName, ready, loading, onClose, onConfirm }) {
   return (
-    <Modal open={open} onClose={onClose} title="Konfirmasi Finalisasi Rapor Mapel" description={`Yakin ingin memfinalisasi rapor mata pelajaran ${studentName}? Setelah difinalisasi, data akan dikunci dan koreksi harus dilakukan melalui proses buka kembali.`} panelClassName="max-w-lg" dismissible={!loading}>
+    <Modal open={open} onClose={onClose} title="Konfirmasi Finalisasi Rapor" description={`Yakin untuk memfinalisasi rapor siswa ${studentName}? Setelah difinalisasi, nilai tidak dapat diubah lagi dari halaman Input Nilai.`} panelClassName="max-w-lg" dismissible={!loading}>
       <TriangleAlert aria-hidden="true" className="mx-auto h-14 w-14 text-amber-500" />
       <div className="mt-5 flex flex-col gap-2">
         <Button onClick={onConfirm} loading={loading} disabled={!ready || loading} className="bg-[#F59E0B] hover:bg-[#D97706]"><CircleCheck aria-hidden="true" className="h-4 w-4" /> {loading ? "Memfinalisasi..." : "Ya, Finalisasi Sekarang"}</Button>
@@ -14,4 +14,3 @@ export default function FinalizeConfirmationModal({ open, studentName, ready, lo
     </Modal>
   );
 }
-

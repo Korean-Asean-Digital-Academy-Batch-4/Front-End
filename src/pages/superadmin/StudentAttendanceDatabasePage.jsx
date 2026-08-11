@@ -1,8 +1,11 @@
 import { CalendarDays, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { useState } from "react";
 import AttendanceRecordStatusBadge from "../../components/superadmin/AttendanceRecordStatusBadge";
+import EditFormField from "../../components/superadmin/EditFormField";
 import SuperAdminFilterSelect from "../../components/superadmin/SuperAdminFilterSelect";
+import TableActionButton from "../../components/superadmin/TableActionButton";
 import Button from "../../components/ui/Button";
+import Modal from "../../components/ui/Modal";
 import { assignmentAcademicYearOptions, assignmentSemesterOptions } from "../../data/assignmentWizardData";
 import { studentAttendanceRecords, studentAttendanceTotal } from "../../data/superAdminManagementData";
 
@@ -25,10 +28,13 @@ function formatAttendanceDate(value) {
 }
 
 export default function StudentAttendanceDatabasePage() {
+  const [attendanceRecords, setAttendanceRecords] = useState(() => studentAttendanceRecords.map((record) => ({ ...record })));
   const [attendanceFilters, setAttendanceFilters] = useState(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState(initialFilters);
   const [page, setPage] = useState(1);
   const [actionMessage, setActionMessage] = useState("");
+  const [editingAttendance, setEditingAttendance] = useState(null);
+  const [attendanceForm, setAttendanceForm] = useState({ status: "present", note: "" });
 
   const updateFilter = (field) => (event) => {
     setAttendanceFilters((current) => ({ ...current, [field]: event.target.value }));
@@ -40,13 +46,27 @@ export default function StudentAttendanceDatabasePage() {
   };
 
   const handleEditAttendance = (record) => {
-    setActionMessage(`Edit presensi ${record.studentName} menunggu prototype lanjutan.`);
+    setEditingAttendance(record);
+    setAttendanceForm({ status: record.status, note: record.note || "" });
+  };
+
+  const closeEditModal = () => setEditingAttendance(null);
+
+  const saveAttendance = (event) => {
+    event.preventDefault();
+    setAttendanceRecords((current) => current.map((record) => record.id === editingAttendance.id ? {
+      ...record,
+      status: attendanceForm.status,
+      note: attendanceForm.note.trim() || "-",
+    } : record));
+    setActionMessage(`Presensi ${editingAttendance.studentName} berhasil diperbarui.`);
+    closeEditModal();
   };
 
   const hasPreviewData = Object.entries(initialFilters).every(([key, value]) => appliedFilters[key] === value);
   const totalEntries = hasPreviewData ? studentAttendanceTotal : 0;
   const pageCount = Math.max(1, Math.ceil(totalEntries / PAGE_SIZE));
-  const visibleRecords = hasPreviewData && page === 1 ? studentAttendanceRecords : [];
+  const visibleRecords = hasPreviewData && page === 1 ? attendanceRecords : [];
   const rangeStart = totalEntries === 0 ? 0 : ((page - 1) * PAGE_SIZE) + 1;
   const rangeEnd = Math.min(page * PAGE_SIZE, totalEntries);
 
@@ -104,9 +124,7 @@ export default function StudentAttendanceDatabasePage() {
                   <td className="px-4 py-4"><AttendanceRecordStatusBadge status={record.status} /></td>
                   <td className="px-4 py-4 text-[#555D6E]">{record.note}</td>
                   <td className="px-4 py-4 text-center">
-                    <button type="button" aria-label={`Edit presensi ${record.studentName}`} onClick={() => handleEditAttendance(record)} className="rounded-md p-2 text-[#697184] hover:bg-[#EEF3FC] hover:text-[#0756D9]">
-                      <Pencil aria-hidden="true" className="h-4 w-4" />
-                    </button>
+                    <TableActionButton icon={Pencil} label={`Edit presensi ${record.studentName}`} onClick={() => handleEditAttendance(record)} />
                   </td>
                 </tr>
               ))}
@@ -140,6 +158,34 @@ export default function StudentAttendanceDatabasePage() {
         </footer>
         <p aria-live="polite" className="sr-only">{actionMessage}</p>
       </section>
+      <Modal open={Boolean(editingAttendance)} onClose={closeEditModal} title="Edit Presensi Siswa" description="Identitas siswa bersifat read-only. Perbarui status dan keterangannya.">
+        {editingAttendance && (
+          <form onSubmit={saveAttendance} className="space-y-4">
+            <EditFormField id="attendance-student-name" label="Nama Siswa" value={editingAttendance.studentName} readOnly />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <EditFormField id="attendance-nis" label="NIS" value={editingAttendance.nis} readOnly />
+              <EditFormField id="attendance-class" label="Kelas" value={editingAttendance.className} readOnly />
+            </div>
+            <label className="block text-sm font-semibold text-[#343946]">
+              Status Kehadiran
+              <select value={attendanceForm.status} onChange={(event) => setAttendanceForm((current) => ({ ...current, status: event.target.value }))} className="mt-2 h-11 w-full rounded-lg border border-[#D7DCE7] bg-white px-3 text-sm outline-none focus:border-[#0756D9] focus:ring-2 focus:ring-[#DCE8FF]">
+                <option value="present">Hadir</option>
+                <option value="sick">Sakit</option>
+                <option value="permission">Izin</option>
+                <option value="absent">Alpa</option>
+              </select>
+            </label>
+            <label className="block text-sm font-semibold text-[#343946]">
+              Keterangan
+              <textarea value={attendanceForm.note} onChange={(event) => setAttendanceForm((current) => ({ ...current, note: event.target.value }))} rows={4} className="mt-2 w-full resize-y rounded-lg border border-[#D7DCE7] bg-white px-3 py-2 text-sm outline-none focus:border-[#0756D9] focus:ring-2 focus:ring-[#DCE8FF]" />
+            </label>
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button variant="secondary" onClick={closeEditModal}>Batal</Button>
+              <Button type="submit">Simpan Perubahan</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </main>
   );
 }

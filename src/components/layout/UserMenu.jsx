@@ -2,7 +2,8 @@ import { LogOut, UserRound } from "lucide-react";
 import { useCallback, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { teacherUser } from "../../data/teacherData";
-import { clearAuthSession, getStoredUser } from "../../stores/authStore";
+import { getStoredUser } from "../../stores/authStore";
+import { logout } from "../../services/authService";
 import Button from "../ui/Button";
 import DropdownMenu from "../ui/DropdownMenu";
 import Modal from "../ui/Modal";
@@ -20,8 +21,8 @@ export default function UserMenu() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const closeMenu = useCallback(() => setOpen(false), []);
 
-  const confirmLogout = () => {
-    clearAuthSession();
+  const confirmLogout = async () => {
+    await logout().catch(() => undefined);
     navigate("/login", { replace: true });
   };
 

@@ -1,11 +1,12 @@
 import { Check, ChevronLeft, ChevronRight, Pencil, Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import InlineScoreInput from "../../components/superadmin/InlineScoreInput";
 import {
   subjectDatabaseRecords,
   subjectDatabaseTotalPages,
 } from "../../data/superAdminManagementData";
 import { validateGradeValue } from "../../utils/gradeValidation";
+import { getSubjects, updateSubject } from "../../services/adminService";
 
 export default function SubjectDatabasePage() {
   const [subjects, setSubjects] = useState(subjectDatabaseRecords);
@@ -14,6 +15,17 @@ export default function SubjectDatabasePage() {
   const [kkmError, setKkmError] = useState("");
   const [page, setPage] = useState(1);
   const [actionMessage, setActionMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    getSubjects()
+      .then((data) => { if (active) setSubjects(data); })
+      .catch((error) => { if (active) setLoadError(error.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
 
   const startEditing = (subject) => {
     setEditingSubjectId(subject.id);
@@ -26,17 +38,20 @@ export default function SubjectDatabasePage() {
     setKkmError(value === "" ? "KKM wajib diisi." : validateGradeValue(value));
   };
 
-  const saveKkm = (subject) => {
+  const saveKkm = async (subject) => {
     const error = draftKkm === "" ? "KKM wajib diisi." : validateGradeValue(draftKkm);
     setKkmError(error);
     if (error) return;
 
-    setSubjects((current) => current.map((item) => (
-      item.id === subject.id ? { ...item, kkm: Number(draftKkm) } : item
-    )));
-    setEditingSubjectId(null);
-    setDraftKkm("");
-    setActionMessage(`KKM ${subject.name} berhasil diperbarui.`);
+    try {
+      const updated = await updateSubject(subject.id, { kkm: Number(draftKkm) });
+      setSubjects((current) => current.map((item) => item.id === subject.id ? updated : item));
+      setEditingSubjectId(null);
+      setDraftKkm("");
+      setActionMessage(`KKM ${subject.name} berhasil diperbarui.`);
+    } catch (requestError) {
+      setKkmError(requestError.message || "KKM gagal diperbarui.");
+    }
   };
 
   const handleAddSubject = () => {
@@ -54,7 +69,10 @@ export default function SubjectDatabasePage() {
         </p>
       </header>
 
-      <section className="mt-7 overflow-hidden rounded-lg border border-[#D7DCE7] bg-white shadow-[0_1px_3px_rgba(30,42,75,0.04)]" aria-label="Database mata pelajaran">
+      {loading && <p role="status" className="mt-6 rounded-lg border border-[#D7DCE7] bg-white p-4 text-sm text-[#697184]">Memuat mata pelajaran...</p>}
+      {loadError && <p role="alert" className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{loadError}</p>}
+
+      {!loading && !loadError && <section className="mt-7 overflow-hidden rounded-lg border border-[#D7DCE7] bg-white shadow-[0_1px_3px_rgba(30,42,75,0.04)]" aria-label="Database mata pelajaran">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] border-collapse text-left">
             <thead className="bg-[#F4F5F7] text-[11px] font-semibold uppercase tracking-wide text-[#555D6E]">
@@ -159,7 +177,7 @@ export default function SubjectDatabasePage() {
           </nav>
         </footer>
         <p aria-live="polite" className="sr-only">{actionMessage}</p>
-      </section>
+      </section>}
     </main>
   );
 }

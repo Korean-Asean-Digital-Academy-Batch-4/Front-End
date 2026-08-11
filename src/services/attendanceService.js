@@ -26,23 +26,34 @@ function assertAssignment({ classId, subjectId }) {
 
 export async function getAttendance(filters) {
   if (!appConfig.useMockApi) {
-    const [sessionsData, studentsData] = await Promise.all([
+    const [sessions, classStudents] = await Promise.all([
       api.get(`/teacher/classes/${filters.classId}/attendance-sessions`),
       api.get(`/teacher/classes/${filters.classId}/students`),
     ]);
-    const sessions = sessionsData.items || sessionsData || [];
-    const classStudents = studentsData.items || studentsData.students || studentsData || [];
-    const selectedSession = sessions.find((session) => session.date === filters.date);
-    const detail = selectedSession ? await api.get(`/teacher/attendance-sessions/${selectedSession.id || selectedSession.sessionId}`) : null;
-    const records = detail?.students || detail?.records || [];
+    const selectedSession = sessions.find(
+      (session) => String(session.session_date).slice(0, 10) === filters.date,
+    );
+    const detail = selectedSession
+      ? await api.get(`/teacher/attendance-sessions/${selectedSession.id}`)
+      : null;
+    const records = detail?.students || [];
     return {
       meetingNumber: sessions.length + (selectedSession ? 0 : 1),
-      meetings: sessions.map((session, index) => ({ number: index + 1, date: session.date })),
+      meetings: sessions.map((session, index) => ({
+        number: sessions.length - index,
+        date: String(session.session_date).slice(0, 10),
+      })),
       students: classStudents.map((student) => {
-        const record = records.find((item) => (item.studentId || item.id) === student.id);
-        return { ...student, history: [], currentStatus: apiToUiStatus[record?.status] || "ABSENT" };
+        const record = records.find((item) => item.student_id === student.id);
+        return {
+          ...student,
+          history: [],
+          currentStatus: apiToUiStatus[record?.status] || "ABSENT",
+        };
       }),
-      savedRecord: selectedSession ? { ...selectedSession, sessionId: selectedSession.id || selectedSession.sessionId } : null,
+      savedRecord: selectedSession
+        ? { ...selectedSession, sessionId: selectedSession.id }
+        : null,
     };
   }
   await wait(700);
@@ -70,10 +81,15 @@ export async function getAttendance(filters) {
 
 export async function saveAttendance(payload) {
   if (!appConfig.useMockApi) {
-    const session = await api.post(`/teacher/classes/${payload.classId}/attendance-sessions`, { date: payload.date });
-    const sessionId = session.sessionId || session.id;
+    const created = await api.post(`/teacher/classes/${payload.classId}/attendance-sessions`, {
+      date: payload.date,
+    });
+    const sessionId = created.session.id;
     await api.put(`/teacher/attendance-sessions/${sessionId}/records`, {
-      records: payload.records.map((record) => ({ studentId: record.studentId, status: uiToApiStatus[record.status] })),
+      records: payload.records.map((record) => ({
+        studentId: record.studentId,
+        status: uiToApiStatus[record.status],
+      })),
     });
     return { ...payload, sessionId };
   }
@@ -97,7 +113,10 @@ export async function updateAttendance(payload) {
   if (!appConfig.useMockApi) {
     if (!payload.sessionId) throw new Error("ATTENDANCE_SESSION_NOT_FOUND");
     await api.put(`/teacher/attendance-sessions/${payload.sessionId}/records`, {
-      records: payload.records.map((record) => ({ studentId: record.studentId, status: uiToApiStatus[record.status] })),
+      records: payload.records.map((record) => ({
+        studentId: record.studentId,
+        status: uiToApiStatus[record.status],
+      })),
     });
     return payload;
   }

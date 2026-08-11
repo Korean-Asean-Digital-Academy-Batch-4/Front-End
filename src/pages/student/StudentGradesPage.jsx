@@ -3,12 +3,22 @@ import { useEffect, useState } from "react";
 import StudentPeriodFilter from "../../components/student/StudentPeriodFilter";
 import Spinner from "../../components/ui/Spinner";
 import { getStudentGrades } from "../../services/studentService";
+import { getStoredUser } from "../../stores/authStore";
 
 const defaultPeriod = { academicYear: "2026/2027", semester: "Semester Ganjil" };
 
+function getActivePeriod() {
+  const period = getStoredUser()?.academicPeriod;
+  return period ? {
+    academicYear: period.academicYear,
+    semester: `Semester ${period.semester}`,
+  } : defaultPeriod;
+}
+
 export default function StudentGradesPage() {
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState(defaultPeriod.academicYear);
-  const [selectedSemester, setSelectedSemester] = useState(defaultPeriod.semester);
+  const activePeriod = getActivePeriod();
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState(activePeriod.academicYear);
+  const [selectedSemester, setSelectedSemester] = useState(activePeriod.semester);
   const [expandedSubjectId, setExpandedSubjectId] = useState("math");
   const [subjects, setSubjects] = useState([]);
   const [status, setStatus] = useState("loading");

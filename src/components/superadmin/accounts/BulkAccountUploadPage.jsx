@@ -81,7 +81,7 @@ export default function BulkAccountUploadPage({ accountType, onUploadSuccess, ch
       setIsUploadModalOpen(false);
       setSelectedFile(null);
       onUploadSuccess?.(fileMetadata);
-      setToast({ type: "success", message: result.mock ? config.successMessage : `${result.createdCount ?? 0} akun berhasil dibuat.` });
+      setToast({ type: "success", message: `${result.createdCount ?? 0} akun berhasil dibuat.` });
     } catch (error) {
       setUploadStatus(UPLOAD_STATES.ERROR);
       setUploadError(error.message || "File gagal diproses.");

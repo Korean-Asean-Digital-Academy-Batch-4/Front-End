@@ -17,19 +17,19 @@ import Button from "../../components/ui/Button";
 import Spinner from "../../components/ui/Spinner";
 import Toast from "../../components/ui/Toast";
 import { REPORT_STATUSES } from "../../data/reportData";
-import { teacherUser } from "../../data/teacherData";
 import {
   downloadSubjectReport,
   finalizeSubjectReport,
   getStudentReport,
   saveReportNote,
 } from "../../services/reportService";
+import { getStoredUser } from "../../stores/authStore";
 import { validateSubjectFinalization } from "../../utils/reportValidation";
 
 function finalizedMetadata(report) {
   if (!report.finalizedAt) return "";
   const date = new Intl.DateTimeFormat("id-ID", { dateStyle: "long", timeStyle: "short" }).format(new Date(report.finalizedAt));
-  return `Difinalisasi oleh ${teacherUser.name} pada ${date}.`;
+  return `Difinalisasi oleh ${getStoredUser()?.name || "Wali Kelas"} pada ${date}.`;
 }
 
 export default function TeacherStudentReportPage() {
@@ -150,7 +150,7 @@ export default function TeacherStudentReportPage() {
       const updated = await finalizeSubjectReport({ studentId, assignmentId });
       setData((current) => ({ ...current, report: updated }));
       setFinalizeOpen(false);
-      setToast({ type: "success", message: `Rapor mata pelajaran ${data.student.name} berhasil difinalisasi.` });
+      setToast({ type: "success", message: `Rapor ${data.student.name} berhasil difinalisasi.` });
     } catch {
       setToast({ type: "error", message: "Rapor gagal difinalisasi. Silakan periksa data kembali." });
     } finally {

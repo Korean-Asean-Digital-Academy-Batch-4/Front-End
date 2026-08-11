@@ -10,14 +10,14 @@ import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
 import Spinner from "../../components/ui/Spinner";
 import { getTeacherProfile } from "../../services/accountService";
-import { clearAuthSession } from "../../stores/authStore";
+import { logout as endSession } from "../../services/authService";
 
 export default function TeacherAccountPage() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [logoutOpen, setLogoutOpen] = useState(false);
   useEffect(() => { getTeacherProfile().then(setProfile); }, []);
-  const logout = () => { clearAuthSession(); navigate("/login", { replace: true }); };
+  const logout = async () => { await endSession().catch(() => undefined); navigate("/login", { replace: true }); };
 
   if (!profile) return <div role="status" className="flex min-h-[55vh] items-center justify-center"><Spinner className="h-9 w-9 text-[#0756D9]" /><span className="sr-only">Memuat profil guru</span></div>;
   return (
@@ -32,4 +32,3 @@ export default function TeacherAccountPage() {
     </div>
   );
 }
-

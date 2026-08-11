@@ -4,6 +4,7 @@ import { assessmentComponents, TOTAL_ASSESSMENT_WEIGHT } from "../src/data/asses
 import { calculateFinalGrade } from "../src/utils/calculateFinalGrade.js";
 import { isValidGradePayload, validateGradeValue } from "../src/utils/gradeValidation.js";
 import { MAX_IMPORT_FILE_SIZE, validateImportFile } from "../src/utils/importFile.js";
+import { isReportFinalizedForPeriod } from "../src/utils/reportFinalization.js";
 import {
   canCreateReport,
   canManageGrades,
@@ -44,7 +45,7 @@ test("perhitungan nilai akhir menggunakan bobot kontrak", () => {
   assert.equal(calculateFinalGrade(scores, assessmentComponents), 80);
 });
 
-test("unggahan akun dibatasi maksimal 5 MB", () => {
+test("unggahan akun mengikuti batas multipart backend 5 MB", () => {
   assert.equal(MAX_IMPORT_FILE_SIZE, 5 * 1024 * 1024);
   assert.match(validateImportFile({ name: "guru.csv", size: MAX_IMPORT_FILE_SIZE + 1 }), /5MB/);
   assert.equal(validateImportFile({ name: "guru.csv", size: MAX_IMPORT_FILE_SIZE }), "");
@@ -98,4 +99,25 @@ test("semua teacher dapat mengelola nilai hanya untuk teaching assignment aktifn
     teachingAssignments: [{ ...filters, status: "inactive" }],
   }).length, 0);
   assert.equal(canManageGrades({ role: "student", teachingAssignments: [{ ...filters, status: "active" }] }), false);
+});
+
+test("finalisasi rapor mengunci siswa hanya pada kelas dan periode yang sama", () => {
+  const report = {
+    studentId: "STD-001",
+    classId: "CLS-001",
+    academicYear: "2026/2027",
+    semester: "GANJIL",
+    status: "FINALIZED_SUBJECT",
+  };
+  const period = {
+    studentId: "STD-001",
+    classId: "CLS-001",
+    academicYear: "2026/2027",
+    semester: "ganjil",
+  };
+  assert.equal(isReportFinalizedForPeriod(report, period), true);
+  assert.equal(isReportFinalizedForPeriod({ ...report, status: "DRAFT" }, period), false);
+  assert.equal(isReportFinalizedForPeriod(report, { ...period, studentId: "STD-002" }), false);
+  assert.equal(isReportFinalizedForPeriod(report, { ...period, classId: "CLS-002" }), false);
+  assert.equal(isReportFinalizedForPeriod(report, { ...period, academicYear: "2027/2028" }), false);
 });

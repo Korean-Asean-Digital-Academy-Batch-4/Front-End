@@ -2,6 +2,8 @@ import { homeroomTeacherUser, teacherUser } from "../data/teacherData";
 import { secondaryStudentUser, studentUser } from "../data/studentData";
 import { appConfig } from "../config/env";
 import { api } from "./apiClient";
+import { ApiError, adaptLoginSession, buildLoginPayload } from "./api/contracts";
+import { clearAuthSession, getStoredUser, hasAuthSession } from "../stores/authStore";
 
 const accounts = [
   {
@@ -47,38 +49,9 @@ const accounts = [
 const wait = (duration) => new Promise((resolve) => setTimeout(resolve, duration));
 
 export async function login({ username, password }) {
-  if (!appConfig.useMockApi) {
-    const data = await api.post("/auth/login", { identifier: username.trim(), password }, { auth: false });
-    const homeroomAssignment = data.profile?.homeroomAssignment ?? (
-      data.profile?.isHomeroom && data.profile?.homeroomClassId
-        ? {
-            classId: data.profile.homeroomClassId,
-            className: data.profile.homeroomClassName || "Kelas Wali",
-            status: "active",
-          }
-        : null
-    );
-    const teachingAssignments = (
-      data.profile?.teachingAssignments || data.profile?.assignedClasses || []
-    ).map((assignment) => ({
-      ...assignment,
-      id: assignment.id || assignment.classId,
-      classId: assignment.classId || assignment.id,
-      status: assignment.status || "active",
-    }));
-    return {
-      token: data.token,
-      user: {
-        ...data.profile,
-        role: data.role,
-        teachingAssignments,
-        homeroomAssignment,
-        isHomeroomTeacher: homeroomAssignment?.status === "active",
-        homeroomClass: homeroomAssignment?.classId
-          ? { id: homeroomAssignment.classId, name: homeroomAssignment.className || "Kelas Wali" }
-          : null,
-      },
-    };
+  if (!appConfig.useMockAuth) {
+    const data = await api.post("/auth/login", buildLoginPayload({ username, password }), { auth: false });
+    return adaptLoginSession(data);
   }
 
   await wait(850);
@@ -97,4 +70,17 @@ export async function login({ username, password }) {
     user: account.user,
     token: `demo-token-${account.user.id}`,
   };
+}
+
+export async function getCurrentUser() {
+  return hasAuthSession() ? getStoredUser() : null;
+}
+
+export async function logout() {
+  clearAuthSession();
+}
+
+export async function changePassword({ currentPassword, newPassword }) {
+  if (appConfig.useMockAuth) { await wait(500); return null; }
+  throw new ApiError("Backend belum menyediakan perubahan kata sandi mandiri.", { status: 501 });
 }

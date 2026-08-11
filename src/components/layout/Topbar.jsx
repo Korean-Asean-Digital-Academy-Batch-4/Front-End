@@ -1,8 +1,10 @@
 import { Menu } from "lucide-react";
 import { academicPeriod } from "../../data/academicData";
+import { getStoredUser } from "../../stores/authStore";
 import UserMenu from "./UserMenu";
 
 export default function Topbar({ onOpenMobile }) {
+  const activePeriod = getStoredUser()?.academicPeriod || academicPeriod;
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center border-b border-[#DCE1EB] bg-white px-4 sm:px-6">
       <button
@@ -14,7 +16,7 @@ export default function Topbar({ onOpenMobile }) {
         <Menu aria-hidden="true" className="h-5 w-5" />
       </button>
       <p className="truncate text-[11px] font-medium uppercase tracking-[0.09em] text-[#545968] sm:text-xs">
-        Semester {academicPeriod.semester} {academicPeriod.academicYear}
+        Semester {activePeriod.semester} {activePeriod.academicYear}
       </p>
       <div className="ml-auto">
         <UserMenu />

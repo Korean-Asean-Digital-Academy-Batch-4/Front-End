@@ -32,18 +32,18 @@ export const gradeStudents = [
 ];
 
 export const initialGrades = {
-  "STD-001": { T1: 85, T2: 88, T3: 90, UH1: 82, UH2: 84, UH3: 86, UTS: 80, UAS: 85 },
-  "STD-002": { T1: 90, T2: 92, T3: 95, UH1: 88, UH2: 90, UH3: 92, UTS: 85, UAS: 92 },
-  "STD-003": { T1: 75, T2: 78, T3: 70, UH1: 72, UH2: 74, UH3: 72, UTS: 70, UAS: 75 },
+  "STD-001": { T1: 85, T2: 88, T3: 90, U1: 82, U2: 84, U3: 86, UTS: 80, UAS: 85 },
+  "STD-002": { T1: 90, T2: 92, T3: 95, U1: 88, U2: 90, U3: 92, UTS: 85, UAS: 92 },
+  "STD-003": { T1: 75, T2: 78, T3: 70, U1: 72, U2: 74, U3: 72, UTS: 70, UAS: 75 },
 };
 
 export const defaultLearningTopics = {
   T1: "Trigonometri",
   T2: "Aljabar Linear",
   T3: "SPLDV",
-  UH1: "Trigonometri",
-  UH2: "Aljabar Linear",
-  UH3: "SPLDV",
+  U1: "Trigonometri",
+  U2: "Aljabar Linear",
+  U3: "SPLDV",
   UTS: "Ujian Tengah Semester",
   UAS: "Ujian Akhir Semester",
 };

@@ -68,7 +68,15 @@ export default function TeacherGradesPage() {
 
   const blocker = useBlocker(isDirty);
   const loading = pageState === "loading";
-  const locked = sheet?.status === GRADE_STATUSES.FINALIZED_SUBJECT;
+  const lockedStudentIds = useMemo(
+    () => new Set(sheet?.lockedStudentIds || []),
+    [sheet?.lockedStudentIds],
+  );
+  const allGradesLocked = Boolean(sheet?.students?.length) &&
+    sheet.students.every((student) => lockedStudentIds.has(student.id));
+  const editableGradesOnly = (grades) => Object.fromEntries(
+    Object.entries(grades).filter(([studentId]) => !lockedStudentIds.has(studentId)),
+  );
 
   const selectedAssignment = useMemo(
     () => assignments.find(
@@ -127,7 +135,7 @@ export default function TeacherGradesPage() {
         await saveGradeDraft({
           ...filters,
           assignmentId: sheet.assignment.assignmentId,
-          grades: draftGrades,
+          grades: editableGradesOnly(draftGrades),
         });
         if (active) setAutosaveStatus("saved");
       } catch {
@@ -177,11 +185,15 @@ export default function TeacherGradesPage() {
   };
 
   const startEditing = () => {
-    if (locked) return;
+    if (allGradesLocked) {
+      setToast({ type: "error", message: "Nilai tidak dapat diedit karena seluruh rapor telah difinalisasi." });
+      return;
+    }
     const storedDraft = sheet?.localDraft?.grades;
     if (storedDraft) {
-      setDraftGrades(cloneGrades(storedDraft));
-      setIsDirty(JSON.stringify(storedDraft) !== JSON.stringify(savedGrades));
+      const recoveredDraft = { ...cloneGrades(savedGrades), ...cloneGrades(storedDraft) };
+      setDraftGrades(recoveredDraft);
+      setIsDirty(JSON.stringify(recoveredDraft) !== JSON.stringify(savedGrades));
       setToast({ type: "success", message: "Draft lokal sebelumnya berhasil dipulihkan." });
     } else {
       setDraftGrades(cloneGrades(savedGrades));
@@ -193,6 +205,10 @@ export default function TeacherGradesPage() {
   };
 
   const handleGradeChange = (studentId, componentId, rawValue) => {
+    if (lockedStudentIds.has(studentId)) {
+      setToast({ type: "error", message: "Nilai tidak dapat diedit karena rapor telah difinalisasi." });
+      return;
+    }
     const nextValue = rawValue === "" ? null : Number(rawValue);
     const nextGrades = {
       ...draftGrades,
@@ -241,7 +257,7 @@ export default function TeacherGradesPage() {
       const result = await saveGrades({
         ...filters,
         assignmentId: sheet.assignment.assignmentId,
-        grades: draftGrades,
+        grades: editableGradesOnly(draftGrades),
         status: GRADE_STATUSES.DRAFT,
         incomplete,
       });
@@ -269,14 +285,15 @@ export default function TeacherGradesPage() {
   };
 
   const requestSave = () => {
-    const validationErrors = validateGradeSheet(draftGrades, sheet.students, assessmentComponents);
+    const editableStudents = sheet.students.filter((student) => !lockedStudentIds.has(student.id));
+    const validationErrors = validateGradeSheet(draftGrades, editableStudents, assessmentComponents);
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length) {
       setToast({ type: "error", message: "Periksa kembali nilai yang berada di luar rentang 0–100." });
       focusFirstInvalid(validationErrors);
       return;
     }
-    const incomplete = hasIncompleteGrades(draftGrades, sheet.students, assessmentComponents);
+    const incomplete = hasIncompleteGrades(draftGrades, editableStudents, assessmentComponents);
     if (incomplete) {
       setIncompleteOpen(true);
       return;
@@ -335,7 +352,13 @@ export default function TeacherGradesPage() {
 
         {pageState === "empty" && <GradeEmptyState noStudents />}
 
-        {pageState === "loaded" && sheet && (
+        {pageState === "loaded" && sheet && <>
+          {lockedStudentIds.size > 0 && (
+            <section role="status" className="mt-7 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
+              <p className="font-semibold">{allGradesLocked ? "Rapor telah difinalisasi. Nilai tidak dapat diedit." : "Sebagian rapor siswa telah difinalisasi."}</p>
+              <p className="mt-1 text-xs">Nilai dikunci setelah rapor siswa difinalisasi oleh wali kelas.</p>
+            </section>
+          )}
           <GradeTable
             students={sortedStudents}
             components={assessmentComponents}
@@ -346,7 +369,8 @@ export default function TeacherGradesPage() {
             isSaving={isSaving}
             isDirty={isDirty}
             autosaveStatus={autosaveStatus}
-            locked={locked}
+            locked={allGradesLocked}
+            lockedStudentIds={[...lockedStudentIds]}
             sortDirection={sortDirection}
             onSort={() => setSortDirection((current) => (current === "asc" ? "desc" : "asc"))}
             onGradeChange={handleGradeChange}
@@ -356,7 +380,7 @@ export default function TeacherGradesPage() {
             onOpenTopics={() => setTopicsOpen(true)}
             topicButtonRef={topicButtonRef}
           />
-        )}
+        </>}
 
         {isActiveHomeroomTeacher(getStoredUser()) && selectedAssignment && (
           <HomeroomInformation className={selectedAssignment.name} />
